@@ -1,7 +1,3 @@
-locals {
-  ou_name = "APP-${upper(var.app_slug)}"
-}
-
 data "aws_organizations_organization" "current" {}
 
 resource "aws_organizations_organizational_unit" "app" {

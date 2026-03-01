@@ -1,0 +1,6 @@
+app_slug   = "todo-list"
+aws_region = "eu-central-1"
+
+tags = {
+  Environment = "bootstrap"
+}

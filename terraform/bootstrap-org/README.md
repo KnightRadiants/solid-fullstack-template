@@ -37,6 +37,11 @@ Todo: Tu można bylo by dodać cały opis zakładania federacji.
 
     terraform destroy -var "app_slug=todo-list" -var "aws_region=eu-central-1"
     ```
+1. Opcjonalnie możesz użyć pliku zmiennych:
+    ```ps
+    Copy-Item terraform.tfvars.example terraform.tfvars
+    terraform plan -var-file="terraform.tfvars"
+    ```
 
 ### 1.1.2. Jeśli generujesz klucze CLI
 
