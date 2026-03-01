@@ -1,6 +1,12 @@
 app_slug   = "todo-list"
 aws_region = "eu-central-1"
+root_email_base = "mateusz@outlook.com"
+bootstrap_mode  = "safe"
+environment_accounts = ["logging", "prod", "dev", "preview", "shared"]
+# debug_suffix  = "dbg01"
 
 tags = {
   Environment = "bootstrap"
 }
+
+

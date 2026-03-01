@@ -29,19 +29,27 @@ Todo: Tu można bylo by dodać cały opis zakładania federacji.
     ```ps
     aws sts get-caller-identity --profile $env:AWS_PROFILE
     ```
-1. Po wykonaniu wcześniejszych kroków możesz wykonywać polecenia:
-    ```ps
-    terraform plan -var "app_slug=todo-list" -var "aws_region=eu-central-1"
-
-    terraform apply -var "app_slug=todo-list" -var "aws_region=eu-central-1"
-
-    terraform destroy -var "app_slug=todo-list" -var "aws_region=eu-central-1"
-    ```
-1. Opcjonalnie możesz użyć pliku zmiennych:
+1. Przygotuj plik zmiennych:
     ```ps
     Copy-Item terraform.tfvars.example terraform.tfvars
-    terraform plan -var-file="terraform.tfvars"
     ```
+1. Po wykonaniu wcześniejszych kroków możesz wykonywać polecenia:
+    ```ps
+    terraform plan -var-file="terraform.tfvars"
+
+    terraform apply -var-file="terraform.tfvars"
+
+    terraform destroy -var-file="terraform.tfvars"
+    ```
+1. Jak włączyć i wyłączyć tryb:
+    - `bootstrap_mode = "safe"`: konta mają `prevent_destroy = true`, więc `terraform destroy` nie zamknie kont.
+    - `bootstrap_mode = "debug"`: konta są tworzone bez `prevent_destroy` i z `close_on_deletion = true`, więc `terraform destroy` może je zamknąć.
+    - Używaj tego samego trybu dla `apply` i `destroy` w tym samym state.
+    - Nie przełączaj istniejącego state między `safe` i `debug`; do innego trybu użyj nowego workspace/state.
+    - `debug_suffix` (np. `dbg01`) dodaje suffix do nazwy i emaila konta, co ułatwia wielokrotne testowe uruchomienia.
+1. Root email dla kont jest generowany z aliasem `+`, np.:
+    - `mateusz+todo-list-logging@outlook.com`
+    - `mateusz+todo-list-prod@outlook.com`
 
 ### 1.1.2. Jeśli generujesz klucze CLI
 
