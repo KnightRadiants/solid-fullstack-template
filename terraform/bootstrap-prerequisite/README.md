@@ -4,7 +4,7 @@ Ten katalog przygotowuje fundament pod automatyzacje GitHub Actions dla nowego r
 - rola OIDC dla GitHub Actions (IAM),
 - remote state backend Terraform (S3 + DynamoDB).
 
-Na tym etapie stack tworzy backend remote state (S3 + DynamoDB). Kolejnym krokiem bedzie dodanie IAM OIDC role dla GitHub Actions.
+Stack tworzy backend remote state (S3 + DynamoDB) oraz role OIDC dla GitHub Actions.
 
 ## 1.1. Uruchomienie lokalne (SSO)
 
@@ -42,12 +42,25 @@ Na tym etapie stack tworzy backend remote state (S3 + DynamoDB). Kolejnym krokie
    - nazwa z `tf_lock_table_name`, albo domyslnie `terraform-locks`
    - `PAY_PER_REQUEST`
    - hash key `LockID`
+1. IAM OIDC:
+   - OIDC provider `token.actions.githubusercontent.com` (lub reuse przez `github_oidc_provider_arn`)
+   - rola `github_oidc_role_name` z trust policy oparta o:
+     - `github_org` + opcjonalnie `github_repo`
+     - opcjonalne `github_subject_patterns`
+   - permissions roli:
+     - Terraform state (S3 + DynamoDB)
+     - bootstrap organizacji (`organizations:*` wymagane przez `bootstrap-org`)
 1. Outputy:
+   - `bootstrap_role_arn`
+   - `bootstrap_role_name`
+   - `github_oidc_provider_arn`
+   - `github_subject_patterns`
    - `tf_state_bucket`
    - `tf_lock_table`
    - `aws_account_id`, `aws_partition`, `aws_region`
 
 ## 1.3. Następny zakres implementacji
 
-1. Dodać IAM OIDC provider i rolę `github_oidc_role_name`.
-1. Wystawić output dla workflow: `bootstrap_role_arn`.
+1. Dodać workflow `bootstrap-org.yml`, który:
+   - użyje `bootstrap_role_arn` przez `aws-actions/configure-aws-credentials`,
+   - uruchomi Terraform dla `terraform/bootstrap-org` na zdalnym backendzie.

@@ -17,3 +17,19 @@ output "tf_state_bucket" {
 output "tf_lock_table" {
   value = aws_dynamodb_table.tf_lock.name
 }
+
+output "bootstrap_role_arn" {
+  value = aws_iam_role.github_actions_bootstrap.arn
+}
+
+output "bootstrap_role_name" {
+  value = aws_iam_role.github_actions_bootstrap.name
+}
+
+output "github_oidc_provider_arn" {
+  value = local.effective_github_oidc_provider_arn
+}
+
+output "github_subject_patterns" {
+  value = local.effective_github_subject_patterns
+}
