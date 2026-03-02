@@ -27,3 +27,9 @@ variable "tf_lock_table_name" {
   type        = string
   default     = ""
 }
+
+variable "tags" {
+  description = "Additional tags added to prerequisite resources."
+  type        = map(string)
+  default     = {}
+}
