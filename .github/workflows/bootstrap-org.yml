@@ -1,0 +1,233 @@
+name: bootstrap-org
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_slug:
+        description: "Application slug, e.g. todo-list"
+        required: true
+        type: string
+      root_email_base:
+        description: "Base root email without plus alias, e.g. owner@example.com"
+        required: true
+        type: string
+      bootstrap_mode:
+        description: "safe keeps prevent_destroy, debug enables account closing on destroy"
+        required: true
+        type: choice
+        options:
+          - safe
+          - debug
+        default: safe
+      debug_suffix:
+        description: "Optional suffix for debug runs, e.g. dbg01"
+        required: false
+        type: string
+        default: ""
+      debug_confirmation:
+        description: "Set YES to allow debug mode"
+        required: false
+        type: string
+        default: "NO"
+      environment_accounts:
+        description: "Comma-separated account list, e.g. logging,prod,dev,preview"
+        required: false
+        type: string
+        default: "logging,prod,dev,preview"
+      action:
+        description: "Run plan only or plan+apply"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+        default: apply
+      aws_region:
+        description: "Optional region override (defaults to AWS_REGION variable)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bootstrap-org:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve workflow configuration
+        id: cfg
+        shell: bash
+        env:
+          INPUT_AWS_REGION: ${{ inputs.aws_region }}
+          INPUT_BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
+          INPUT_DEBUG_CONFIRMATION: ${{ inputs.debug_confirmation }}
+          VAR_AWS_REGION: ${{ vars.AWS_REGION }}
+          VAR_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          VAR_BOOTSTRAP_ROLE_NAME: ${{ vars.BOOTSTRAP_ROLE_NAME }}
+          VAR_AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          VAR_TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          VAR_TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
+          VAR_TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${INPUT_BOOTSTRAP_MODE}" == "debug" && "${INPUT_DEBUG_CONFIRMATION}" != "YES" ]]; then
+            echo "::error::debug mode requires debug_confirmation=YES."
+            exit 1
+          fi
+
+          AWS_REGION="${INPUT_AWS_REGION:-$VAR_AWS_REGION}"
+          if [[ -z "${AWS_REGION}" ]]; then
+            echo "::error::AWS region is missing. Set workflow input aws_region or repository/org variable AWS_REGION."
+            exit 1
+          fi
+
+          if [[ -z "${VAR_TF_STATE_BUCKET}" ]]; then
+            echo "::error::Missing variable TF_STATE_BUCKET."
+            exit 1
+          fi
+
+          if [[ -z "${VAR_TF_LOCK_TABLE}" ]]; then
+            echo "::error::Missing variable TF_LOCK_TABLE."
+            exit 1
+          fi
+
+          if [[ -n "${VAR_AWS_ROLE_TO_ASSUME}" ]]; then
+            ROLE_ARN="${VAR_AWS_ROLE_TO_ASSUME}"
+          else
+            if [[ -z "${VAR_AWS_ACCOUNT_ID}" || -z "${VAR_BOOTSTRAP_ROLE_NAME}" ]]; then
+              echo "::error::Set AWS_ROLE_TO_ASSUME or both AWS_ACCOUNT_ID and BOOTSTRAP_ROLE_NAME."
+              exit 1
+            fi
+            ROLE_ARN="arn:aws:iam::${VAR_AWS_ACCOUNT_ID}:role/${VAR_BOOTSTRAP_ROLE_NAME}"
+          fi
+
+          STATE_PREFIX="${VAR_TF_STATE_KEY_PREFIX:-bootstrap-org}"
+          STATE_PREFIX="${STATE_PREFIX#/}"
+          STATE_PREFIX="${STATE_PREFIX%/}"
+          STATE_KEY="${STATE_PREFIX}/${{ inputs.app_slug }}.tfstate"
+
+          echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
+          echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
+          echo "tf_state_bucket=${VAR_TF_STATE_BUCKET}" >> "$GITHUB_OUTPUT"
+          echo "tf_lock_table=${VAR_TF_LOCK_TABLE}" >> "$GITHUB_OUTPUT"
+          echo "state_key=${STATE_KEY}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.cfg.outputs.role_arn }}
+          aws-region: ${{ steps.cfg.outputs.aws_region }}
+
+      - name: Preflight backend resources
+        shell: bash
+        env:
+          AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
+          TF_STATE_BUCKET: ${{ steps.cfg.outputs.tf_state_bucket }}
+          TF_LOCK_TABLE: ${{ steps.cfg.outputs.tf_lock_table }}
+        run: |
+          set -euo pipefail
+
+          if ! aws s3api head-bucket --bucket "$TF_STATE_BUCKET" 2>/dev/null; then
+            echo "::error::S3 backend bucket '$TF_STATE_BUCKET' does not exist or is not accessible."
+            exit 1
+          fi
+
+          if ! aws dynamodb describe-table --table-name "$TF_LOCK_TABLE" --region "$AWS_REGION" >/dev/null 2>&1; then
+            echo "::error::DynamoDB lock table '$TF_LOCK_TABLE' does not exist or is not accessible."
+            exit 1
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Build runtime tfvars
+        id: tfvars
+        shell: bash
+        env:
+          APP_SLUG: ${{ inputs.app_slug }}
+          ROOT_EMAIL_BASE: ${{ inputs.root_email_base }}
+          BOOTSTRAP_MODE: ${{ inputs.bootstrap_mode }}
+          DEBUG_SUFFIX: ${{ inputs.debug_suffix }}
+          ENVIRONMENT_ACCOUNTS: ${{ inputs.environment_accounts }}
+          AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t ACCOUNTS < <(
+            echo "$ENVIRONMENT_ACCOUNTS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]' | awk 'NF'
+          )
+
+          if [[ ${#ACCOUNTS[@]} -eq 0 ]]; then
+            echo "::error::environment_accounts input produced an empty list."
+            exit 1
+          fi
+
+          ACCOUNTS_HCL="["
+          for item in "${ACCOUNTS[@]}"; do
+            ACCOUNTS_HCL="${ACCOUNTS_HCL}\"${item}\", "
+          done
+          ACCOUNTS_HCL="${ACCOUNTS_HCL%, }]"
+
+          TFVARS_PATH="$RUNNER_TEMP/bootstrap-org.tfvars"
+          cat > "$TFVARS_PATH" <<EOF
+          app_slug             = "${APP_SLUG}"
+          root_email_base      = "${ROOT_EMAIL_BASE}"
+          aws_region           = "${AWS_REGION}"
+          bootstrap_mode       = "${BOOTSTRAP_MODE}"
+          debug_suffix         = "${DEBUG_SUFFIX}"
+          environment_accounts = ${ACCOUNTS_HCL}
+
+          tags = {
+            ManagedBy = "GitHubActions"
+          }
+          EOF
+
+          echo "tfvars_path=${TFVARS_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform init
+        shell: bash
+        env:
+          AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
+          TF_STATE_BUCKET: ${{ steps.cfg.outputs.tf_state_bucket }}
+          TF_LOCK_TABLE: ${{ steps.cfg.outputs.tf_lock_table }}
+          STATE_KEY: ${{ steps.cfg.outputs.state_key }}
+        run: |
+          set -euo pipefail
+          terraform -chdir=terraform/bootstrap-org init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true" \
+            -reconfigure
+
+      - name: Terraform plan
+        shell: bash
+        env:
+          TFVARS_PATH: ${{ steps.tfvars.outputs.tfvars_path }}
+        run: |
+          set -euo pipefail
+          terraform -chdir=terraform/bootstrap-org plan \
+            -var-file="${TFVARS_PATH}" \
+            -out="$RUNNER_TEMP/bootstrap-org.tfplan"
+
+      - name: Terraform apply
+        if: ${{ inputs.action == 'apply' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=terraform/bootstrap-org apply -auto-approve "$RUNNER_TEMP/bootstrap-org.tfplan"
+
+      - name: Terraform outputs
+        if: ${{ inputs.action == 'apply' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=terraform/bootstrap-org output

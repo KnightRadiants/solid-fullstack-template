@@ -13,6 +13,7 @@ tf_lock_table_name    = "<TF_LOCK_TABLE_NAME>"
 # github_oidc_provider_arn = "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
 # Optional. Override trust patterns; default comes from github_org/github_repo.
 # github_subject_patterns = ["repo:<GITHUB_ORG>/<GITHUB_REPO>:*"]
+# debug_suffix  = "dbg01"
 
 tags = {
   Environment = "bootstrap-prerequisite"

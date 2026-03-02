@@ -61,6 +61,12 @@ Stack tworzy backend remote state (S3 + DynamoDB) oraz role OIDC dla GitHub Acti
 
 ## 1.3. Następny zakres implementacji
 
-1. Dodać workflow `bootstrap-org.yml`, który:
-   - użyje `bootstrap_role_arn` przez `aws-actions/configure-aws-credentials`,
-   - uruchomi Terraform dla `terraform/bootstrap-org` na zdalnym backendzie.
+1. Uruchomić workflow `.github/workflows/bootstrap-org.yml` przez `workflow_dispatch`.
+1. Ustawić wymagane Repo/Org Variables dla workflow:
+   - `AWS_REGION` (np. `eu-central-1`)
+   - `TF_STATE_BUCKET` (output `tf_state_bucket`)
+   - `TF_LOCK_TABLE` (output `tf_lock_table`)
+   - `TF_STATE_KEY_PREFIX` (np. `bootstrap-org`, opcjonalne)
+   - jedna z opcji roli:
+     - `AWS_ROLE_TO_ASSUME` (pełny ARN roli), albo
+     - `AWS_ACCOUNT_ID` + `BOOTSTRAP_ROLE_NAME` (output `bootstrap_role_name`)
