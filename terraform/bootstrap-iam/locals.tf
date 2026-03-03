@@ -1,5 +1,4 @@
 locals {
-  normalized_target_account_ids = {
-    for name, id in var.target_account_ids : lower(name) => id
-  }
+  normalized_environment_name = lower(var.environment_name)
+  account_access_role_arn     = "arn:aws:iam::${var.target_account_id}:role/${var.organization_account_access_role_name}"
 }

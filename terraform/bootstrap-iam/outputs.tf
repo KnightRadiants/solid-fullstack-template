@@ -10,6 +10,14 @@ output "aws_region" {
   value = var.aws_region
 }
 
-output "normalized_target_account_ids" {
-  value = local.normalized_target_account_ids
+output "environment_name" {
+  value = local.normalized_environment_name
+}
+
+output "target_account_id" {
+  value = var.target_account_id
+}
+
+output "account_access_role_arn" {
+  value = local.account_access_role_arn
 }

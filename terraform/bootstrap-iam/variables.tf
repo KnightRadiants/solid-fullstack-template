@@ -14,16 +14,23 @@ variable "app_slug" {
   }
 }
 
-variable "target_account_ids" {
-  description = "Map of environment account names to account IDs, e.g. { prod = \"123...\", dev = \"456...\" }."
-  type        = map(string)
-  default     = {}
+variable "environment_name" {
+  description = "Target environment/account name, e.g. prod, dev, preview, logging, shared."
+  type        = string
 
   validation {
-    condition = alltrue([
-      for account_id in values(var.target_account_ids) : can(regex("^\\d{12}$", account_id))
-    ])
-    error_message = "Each target_account_ids value must be a 12-digit AWS account ID."
+    condition     = can(regex("^[a-z0-9-]+$", var.environment_name))
+    error_message = "environment_name must contain only lowercase letters, numbers, and hyphens."
+  }
+}
+
+variable "target_account_id" {
+  description = "Single AWS account ID where IAM resources should be created."
+  type        = string
+
+  validation {
+    condition     = can(regex("^\\d{12}$", var.target_account_id))
+    error_message = "target_account_id must be a 12-digit AWS account ID."
   }
 }
 
