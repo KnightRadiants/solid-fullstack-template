@@ -1,18 +1,19 @@
-name: bootstrap-iam
+name: bootstrap-iam-matrix
 
 on:
-    workflow_call:
+    workflow_dispatch:
         inputs:
             app_slug:
+                description: "Application slug, e.g. todo-list"
                 required: true
                 type: string
-            environment_name:
-                required: true
+            environments:
+                description: "Optional comma-separated environment filter, e.g. prod,dev,preview"
+                required: false
                 type: string
-            target_account_id:
-                required: true
-                type: string
+                default: ""
             aws_region:
+                description: "Optional region override (defaults to AWS_REGION variable)"
                 required: false
                 type: string
                 default: ""
@@ -22,8 +23,11 @@ permissions:
     contents: read
 
 jobs:
-    bootstrap-iam:
+    resolve-targets:
         runs-on: ubuntu-latest
+        outputs:
+            matrix_json: ${{ steps.targets.outputs.matrix_json }}
+            aws_region: ${{ steps.cfg.outputs.aws_region }}
 
         steps:
             - name: Checkout
@@ -73,7 +77,7 @@ jobs:
                   STATE_PREFIX="${VAR_TF_STATE_KEY_PREFIX:-bootstrap-org}"
                   STATE_PREFIX="${STATE_PREFIX#/}"
                   STATE_PREFIX="${STATE_PREFIX%/}"
-                  STATE_KEY="${STATE_PREFIX}/bootstrap-iam/${{ inputs.app_slug }}/${{ inputs.environment_name }}.tfstate"
+                  STATE_KEY="${STATE_PREFIX}/${{ inputs.app_slug }}.tfstate"
 
                   echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
                   echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
@@ -109,52 +113,19 @@ jobs:
             - name: Setup Terraform
               uses: hashicorp/setup-terraform@v3
 
-            - name: Build runtime tfvars
-              id: tfvars
-              shell: bash
-              env:
-                  APP_SLUG: ${{ inputs.app_slug }}
-                  ENVIRONMENT_NAME: ${{ inputs.environment_name }}
-                  TARGET_ACCOUNT_ID: ${{ inputs.target_account_id }}
-                  AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
-                  GITHUB_REPOSITORY: ${{ github.repository }}
-                  GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-              run: |
-                  set -euo pipefail
-
-                  GITHUB_ORG="${GITHUB_REPOSITORY_OWNER}"
-                  GITHUB_REPO="${GITHUB_REPOSITORY#*/}"
-                  if [[ -z "${GITHUB_ORG}" || -z "${GITHUB_REPO}" || "${GITHUB_REPOSITORY}" != */* ]]; then
-                    echo "::error::Cannot resolve github org/repo from workflow context."
-                    exit 1
-                  fi
-
-                  TFVARS_PATH="$RUNNER_TEMP/bootstrap-iam.tfvars"
-                  cat > "$TFVARS_PATH" <<EOF
-                  app_slug          = "${APP_SLUG}"
-                  environment_name  = "${ENVIRONMENT_NAME}"
-                  target_account_id = "${TARGET_ACCOUNT_ID}"
-                  github_org        = "${GITHUB_ORG}"
-                  github_repo       = "${GITHUB_REPO}"
-                  aws_region        = "${AWS_REGION}"
-
-                  tags = {
-                    ManagedBy = "GitHubActions"
-                  }
-                  EOF
-
-                  echo "tfvars_path=${TFVARS_PATH}" >> "$GITHUB_OUTPUT"
-
-            - name: Terraform init
+            - name: Read account targets from bootstrap-org state
+              id: targets
               shell: bash
               env:
                   AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
                   TF_STATE_BUCKET: ${{ steps.cfg.outputs.tf_state_bucket }}
                   TF_LOCK_TABLE: ${{ steps.cfg.outputs.tf_lock_table }}
                   STATE_KEY: ${{ steps.cfg.outputs.state_key }}
+                  ENVIRONMENTS_RAW: ${{ inputs.environments }}
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam init \
+
+                  terraform -chdir=terraform/bootstrap-org init \
                     -backend-config="bucket=${TF_STATE_BUCKET}" \
                     -backend-config="key=${STATE_KEY}" \
                     -backend-config="region=${AWS_REGION}" \
@@ -162,24 +133,53 @@ jobs:
                     -backend-config="encrypt=true" \
                     -reconfigure
 
-            - name: Terraform plan
+                  ACCOUNT_IDS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json account_ids | jq -c .)"
+                  if [[ -z "${ACCOUNT_IDS_JSON}" || "${ACCOUNT_IDS_JSON}" == "null" || "${ACCOUNT_IDS_JSON}" == "{}" ]]; then
+                    echo "::error::No account_ids found in bootstrap-org state (${STATE_KEY})."
+                    exit 1
+                  fi
+
+                  FILTERS_JSON="[]"
+                  if [[ -n "${ENVIRONMENTS_RAW}" ]]; then
+                    FILTERS_JSON="$(echo "${ENVIRONMENTS_RAW}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]' | awk 'NF' | jq -R . | jq -sc .)"
+                  fi
+
+                  TARGETS_JSON="$(jq -c --argjson filters "${FILTERS_JSON}" '
+                    to_entries
+                    | map({ environment_name: (.key | ascii_downcase), target_account_id: (.value | tostring) })
+                    | if ($filters | length) > 0
+                      then map(select(.environment_name as $env | ($filters | index($env))))
+                      else .
+                      end
+                    | sort_by(.environment_name)
+                  ' <<< "${ACCOUNT_IDS_JSON}")"
+
+                  if [[ "${TARGETS_JSON}" == "[]" ]]; then
+                    echo "::error::Environment filter produced empty target list."
+                    exit 1
+                  fi
+
+                  echo "matrix_json=${TARGETS_JSON}" >> "$GITHUB_OUTPUT"
+
+            - name: Print matrix targets
               shell: bash
               env:
-                  TFVARS_PATH: ${{ steps.tfvars.outputs.tfvars_path }}
+                  MATRIX_JSON: ${{ steps.targets.outputs.matrix_json }}
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam plan \
-                    -var-file="${TFVARS_PATH}" \
-                    -out="$RUNNER_TEMP/bootstrap-iam.tfplan"
+                  echo "${MATRIX_JSON}" | jq .
 
-            - name: Terraform apply
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam apply -auto-approve "$RUNNER_TEMP/bootstrap-iam.tfplan"
+    bootstrap-iam:
+        needs: resolve-targets
+        strategy:
+            fail-fast: false
+            matrix:
+                include: ${{ fromJSON(needs.resolve-targets.outputs.matrix_json) }}
 
-            - name: Terraform outputs
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam output
+        uses: ./.github/workflows/bootstrap-iam.yml
+        with:
+            app_slug: ${{ inputs.app_slug }}
+            environment_name: ${{ matrix.environment_name }}
+            target_account_id: ${{ matrix.target_account_id }}
+            aws_region: ${{ needs.resolve-targets.outputs.aws_region }}
+        secrets: inherit

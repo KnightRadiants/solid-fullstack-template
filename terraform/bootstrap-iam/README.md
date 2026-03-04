@@ -48,23 +48,30 @@ Kolejne kroki to uruchamianie matrix/orchestrator oraz powiazanie outputow z kon
 
 ## 1.2. Następny zakres implementacji
 
-1. Dodać workflow matrix, ktory uruchomi ten stack dla kazdego konta z outputow `bootstrap-org`.
+1. Spiac workflow matrix z orchestratorem `bootstrap-all`, aby uruchamial sie automatycznie po `bootstrap-org`.
 1. Doprecyzować minimalne policy IAM per typ konta (`prod/dev/preview/shared/logging`).
 
 ## 1.3. Workflow manualny
 
-Dostępny jest workflow `bootstrap-iam.yml` (workflow_dispatch) dla pojedynczego konta:
+Workflow `bootstrap-iam.yml` jest workflow wewnętrznym (`workflow_call`), uruchamianym przez `bootstrap-iam-matrix.yml`.
 
-1. Podaj:
-    - `app_slug`
-    - `environment_name`
-    - `target_account_id`
-1. Ustaw `action=plan` na pierwsze uruchomienie.
-1. Po pozytywnym planie uruchom `action=apply`.
-
-`github_org` i `github_repo` sa pobierane automatycznie z kontekstu repozytorium uruchamiajacego workflow.
+`bootstrap-iam.yml` wykonuje zawsze:
+1. `terraform plan`
+1. `terraform apply`
 
 Workflow używa:
 - roli bootstrapowej z `AWS_ROLE_TO_ASSUME` (management account),
 - backendu z `TF_STATE_BUCKET` i `TF_LOCK_TABLE`,
 - `OrganizationAccountAccessRole` do wejścia na konto docelowe i utworzenia roli `gha-environment-deploy`.
+
+## 1.4. Workflow matrix
+
+Dostępny jest także workflow `bootstrap-iam-matrix.yml` (workflow_dispatch), który:
+- czyta `account_ids` ze state `bootstrap-org` dla podanego `app_slug`,
+- buduje matrix `environment_name -> target_account_id`,
+- uruchamia `bootstrap-iam.yml` dla każdego konta.
+
+Inputy:
+- `app_slug` (wymagane),
+- `environments` (opcjonalny filtr, np. `prod,dev,preview`),
+- `aws_region` (opcjonalny override).
