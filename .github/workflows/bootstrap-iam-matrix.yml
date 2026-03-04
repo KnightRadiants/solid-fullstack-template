@@ -133,9 +133,10 @@ jobs:
                     -backend-config="encrypt=true" \
                     -reconfigure
 
-                  ACCOUNT_IDS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json account_ids | jq -c .)"
-                  if [[ -z "${ACCOUNT_IDS_JSON}" || "${ACCOUNT_IDS_JSON}" == "null" || "${ACCOUNT_IDS_JSON}" == "{}" ]]; then
-                    echo "::error::No account_ids found in bootstrap-org state (${STATE_KEY})."
+                  OUTPUTS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json)"
+                  ACCOUNT_IDS_JSON="$(jq -c '.account_ids.value // {}' <<< "${OUTPUTS_JSON}")"
+                  if [[ "${ACCOUNT_IDS_JSON}" == "{}" ]]; then
+                    echo "::error::No output account_ids found in bootstrap-org state (${STATE_KEY}). Run bootstrap-org apply once for this app_slug to refresh outputs."
                     exit 1
                   fi
 
