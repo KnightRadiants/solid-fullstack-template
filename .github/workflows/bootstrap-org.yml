@@ -40,14 +40,6 @@ on:
                     - release
                     - full-qa
                 default: dev-standard
-            action:
-                description: "Run plan only or plan+apply"
-                required: true
-                type: choice
-                options:
-                    - plan
-                    - apply
-                default: apply
             aws_region:
                 description: "Optional region override (defaults to AWS_REGION variable)"
                 required: false
@@ -61,18 +53,6 @@ permissions:
 jobs:
     bootstrap-org:
         runs-on: ubuntu-latest
-        # Job outputs form a machine-readable contract for downstream automation.
-        outputs:
-            preset: ${{ steps.tfvars.outputs.preset }}
-            accounts_json: ${{ steps.tfvars.outputs.accounts_json }}
-            repo_branches_json: ${{ steps.tfvars.outputs.repo_branches_json }}
-            default_branch: ${{ steps.tfvars.outputs.default_branch }}
-            enable_preview_pr: ${{ steps.tfvars.outputs.enable_preview_pr }}
-            account_ids_json: ${{ steps.tfout.outputs.account_ids_json }}
-            account_arns_json: ${{ steps.tfout.outputs.account_arns_json }}
-            account_emails_json: ${{ steps.tfout.outputs.account_emails_json }}
-            ou_id: ${{ steps.tfout.outputs.ou_id }}
-            ou_arn: ${{ steps.tfout.outputs.ou_arn }}
 
         steps:
             - name: Checkout
@@ -198,9 +178,6 @@ jobs:
                   fi
 
                   ACCOUNTS_HCL="$(jq -c --arg preset "$PRESET" '.presets[$preset].aws_accounts' "$PRESETS_FILE")"
-                  BRANCHES_JSON="$(jq -c --arg preset "$PRESET" '.presets[$preset].repo_branches' "$PRESETS_FILE")"
-                  DEFAULT_BRANCH="$(jq -r --arg preset "$PRESET" '.presets[$preset].default_branch' "$PRESETS_FILE")"
-                  ENABLE_PREVIEW_PR="$(jq -r --arg preset "$PRESET" '.presets[$preset].enable_preview_pr' "$PRESETS_FILE")"
 
                   TFVARS_PATH="$RUNNER_TEMP/bootstrap-org.tfvars"
                   cat > "$TFVARS_PATH" <<EOF
@@ -218,11 +195,6 @@ jobs:
 
                   echo "tfvars_path=${TFVARS_PATH}" >> "$GITHUB_OUTPUT"
                   echo "accounts_hcl=${ACCOUNTS_HCL}" >> "$GITHUB_OUTPUT"
-                  echo "accounts_json=${ACCOUNTS_HCL}" >> "$GITHUB_OUTPUT"
-                  echo "repo_branches_json=${BRANCHES_JSON}" >> "$GITHUB_OUTPUT"
-                  echo "default_branch=${DEFAULT_BRANCH}" >> "$GITHUB_OUTPUT"
-                  echo "enable_preview_pr=${ENABLE_PREVIEW_PR}" >> "$GITHUB_OUTPUT"
-                  echo "preset=${PRESET}" >> "$GITHUB_OUTPUT"
 
             - name: Print destroy helper command
               shell: bash
@@ -286,66 +258,13 @@ jobs:
                     -out="$RUNNER_TEMP/bootstrap-org.tfplan"
 
             - name: Terraform apply
-              if: ${{ inputs.action == 'apply' }}
               shell: bash
               run: |
                   set -euo pipefail
                   terraform -chdir=terraform/bootstrap-org apply -auto-approve "$RUNNER_TEMP/bootstrap-org.tfplan"
 
-            - name: Terraform outputs (human-readable)
-              if: ${{ inputs.action == 'apply' }}
+            - name: Terraform outputs
               shell: bash
               run: |
                   set -euo pipefail
                   terraform -chdir=terraform/bootstrap-org output
-
-            - name: Terraform outputs (JSON)
-              if: ${{ inputs.action == 'apply' }}
-              id: tfout
-              shell: bash
-              run: |
-                  set -euo pipefail
-
-                  # Read structured outputs from state and expose them via GITHUB_OUTPUT.
-                  ACCOUNT_IDS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json account_ids | jq -c .)"
-                  ACCOUNT_ARNS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json account_arns | jq -c .)"
-                  ACCOUNT_EMAILS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json account_emails | jq -c .)"
-                  OU_ID="$(terraform -chdir=terraform/bootstrap-org output -raw ou_id)"
-                  OU_ARN="$(terraform -chdir=terraform/bootstrap-org output -raw ou_arn)"
-
-                  echo "account_ids_json=${ACCOUNT_IDS_JSON}" >> "$GITHUB_OUTPUT"
-                  echo "account_arns_json=${ACCOUNT_ARNS_JSON}" >> "$GITHUB_OUTPUT"
-                  echo "account_emails_json=${ACCOUNT_EMAILS_JSON}" >> "$GITHUB_OUTPUT"
-                  echo "ou_id=${OU_ID}" >> "$GITHUB_OUTPUT"
-                  echo "ou_arn=${OU_ARN}" >> "$GITHUB_OUTPUT"
-
-            - name: Print standardized JSON payload
-              if: ${{ inputs.action == 'apply' }}
-              shell: bash
-              env:
-                  PRESET: ${{ steps.tfvars.outputs.preset }}
-                  ACCOUNT_IDS_JSON: ${{ steps.tfout.outputs.account_ids_json }}
-                  ACCOUNT_ARNS_JSON: ${{ steps.tfout.outputs.account_arns_json }}
-                  ACCOUNT_EMAILS_JSON: ${{ steps.tfout.outputs.account_emails_json }}
-                  OU_ID: ${{ steps.tfout.outputs.ou_id }}
-                  OU_ARN: ${{ steps.tfout.outputs.ou_arn }}
-              run: |
-                  set -euo pipefail
-
-                  # Emit one normalized JSON document for logs/debugging and future parsers.
-                  jq -n \
-                    --arg preset "$PRESET" \
-                    --arg ou_id "$OU_ID" \
-                    --arg ou_arn "$OU_ARN" \
-                    --argjson account_ids "$ACCOUNT_IDS_JSON" \
-                    --argjson account_arns "$ACCOUNT_ARNS_JSON" \
-                    --argjson account_emails "$ACCOUNT_EMAILS_JSON" \
-                    '{
-                      preset: $preset,
-                      ou: { id: $ou_id, arn: $ou_arn },
-                      accounts: {
-                        ids: $account_ids,
-                        arns: $account_arns,
-                        emails: $account_emails
-                      }
-                    }'
