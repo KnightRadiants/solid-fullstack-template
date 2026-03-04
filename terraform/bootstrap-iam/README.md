@@ -59,10 +59,10 @@ Dostępny jest workflow `bootstrap-iam.yml` (workflow_dispatch) dla pojedynczego
     - `app_slug`
     - `environment_name`
     - `target_account_id`
-    - `github_org`
-    - `github_repo`
 1. Ustaw `action=plan` na pierwsze uruchomienie.
 1. Po pozytywnym planie uruchom `action=apply`.
+
+`github_org` i `github_repo` sa pobierane automatycznie z kontekstu repozytorium uruchamiajacego workflow.
 
 Workflow używa:
 - roli bootstrapowej z `AWS_ROLE_TO_ASSUME` (management account),

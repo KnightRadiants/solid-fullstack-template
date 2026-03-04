@@ -15,14 +15,6 @@ on:
                 description: "Target AWS account ID where IAM role should be created"
                 required: true
                 type: string
-            github_org:
-                description: "GitHub organization name"
-                required: true
-                type: string
-            github_repo:
-                description: "GitHub repository name"
-                required: true
-                type: string
             github_subject_patterns:
                 description: "Optional comma-separated sub patterns overriding environment-scoped default"
                 required: false
@@ -158,14 +150,21 @@ jobs:
                   APP_SLUG: ${{ inputs.app_slug }}
                   ENVIRONMENT_NAME: ${{ inputs.environment_name }}
                   TARGET_ACCOUNT_ID: ${{ inputs.target_account_id }}
-                  GITHUB_ORG: ${{ inputs.github_org }}
-                  GITHUB_REPO: ${{ inputs.github_repo }}
                   GITHUB_SUBJECT_PATTERNS_RAW: ${{ inputs.github_subject_patterns }}
                   IAM_MANAGED_POLICY_ARNS_RAW: ${{ inputs.iam_managed_policy_arns }}
                   ORG_ACCESS_ROLE_NAME: ${{ inputs.organization_account_access_role_name }}
                   AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+                  GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
               run: |
                   set -euo pipefail
+
+                  GITHUB_ORG="${GITHUB_REPOSITORY_OWNER}"
+                  GITHUB_REPO="${GITHUB_REPOSITORY#*/}"
+                  if [[ -z "${GITHUB_ORG}" || -z "${GITHUB_REPO}" || "${GITHUB_REPOSITORY}" != */* ]]; then
+                    echo "::error::Cannot resolve github org/repo from workflow context."
+                    exit 1
+                  fi
 
                   mapfile -t POLICY_ARNS < <(
                     echo "$IAM_MANAGED_POLICY_ARNS_RAW" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | awk 'NF'
