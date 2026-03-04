@@ -112,7 +112,7 @@ jobs:
                     ROLE_ARN="arn:aws:iam::${VAR_AWS_ACCOUNT_ID}:role/${VAR_BOOTSTRAP_ROLE_NAME}"
                   fi
 
-                  STATE_PREFIX="${VAR_TF_STATE_KEY_PREFIX:-bootstrap}"
+                  STATE_PREFIX="${VAR_TF_STATE_KEY_PREFIX:-bootstrap-org}"
                   STATE_PREFIX="${STATE_PREFIX#/}"
                   STATE_PREFIX="${STATE_PREFIX%/}"
                   STATE_KEY="${STATE_PREFIX}/bootstrap-iam/${{ inputs.app_slug }}/${{ inputs.environment_name }}.tfstate"
