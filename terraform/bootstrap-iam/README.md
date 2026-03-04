@@ -50,3 +50,21 @@ Na tym etapie dodany jest szkielet stacka. Kolejnym krokiem bedzie implementacja
 
 1. Dodać workflow matrix, ktory uruchomi ten stack dla kazdego konta z outputow `bootstrap-org`.
 1. Doprecyzować minimalne policy IAM per typ konta (`prod/dev/preview/shared/logging`).
+
+## 1.3. Workflow manualny
+
+Dostępny jest workflow `bootstrap-iam.yml` (workflow_dispatch) dla pojedynczego konta:
+
+1. Podaj:
+    - `app_slug`
+    - `environment_name`
+    - `target_account_id`
+    - `github_org`
+    - `github_repo`
+1. Ustaw `action=plan` na pierwsze uruchomienie.
+1. Po pozytywnym planie uruchom `action=apply`.
+
+Workflow używa:
+- roli bootstrapowej z `AWS_ROLE_TO_ASSUME` (management account),
+- backendu z `TF_STATE_BUCKET` i `TF_LOCK_TABLE`,
+- `OrganizationAccountAccessRole` do wejścia na konto docelowe i utworzenia roli `gha-environment-deploy`.
