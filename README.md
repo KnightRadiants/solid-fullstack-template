@@ -32,8 +32,13 @@
     - ustawia `default_branch` z presetu,
     - tworzy GitHub Environments zgodnie z listą `aws_accounts` z presetu.
 
+1. Uruchom workflow `bootstrap-gh-bind`:
+    - workflow czyta `account_ids` ze stanu `bootstrap-org`,
+    - buduje `AWS_ROLE_TO_ASSUME` (`gha-environment-deploy`) per environment,
+    - zapisuje `AWS_ROLE_TO_ASSUME` i `AWS_REGION` do GitHub Environment Variables.
+
 1. Docelowo będzie jeden workflow orchestratora `bootstrap-all`, który uruchomi:
     - `bootstrap-org` (OU + konta),
-    - `bootstrap-iam` (OIDC + role w kontach member),
+    - `bootstrap-iam` (OIDC + role `gha-environment-deploy` w kontach member),
     - `bootstrap-gh-core` (utworzenie environments/branches/rulesets),
     - `bootstrap-gh-bind` (powiązanie outputów AWS z GitHub env vars/secrets).
