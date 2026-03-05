@@ -8,6 +8,10 @@ Each preset defines:
 - `default_branch`: repository default branch
 - `enable_preview_pr`: whether preview-per-PR flow should be enabled
 
+Consumers:
+- `bootstrap-org.yml`: uses `aws_accounts` to create OU member accounts
+- `bootstrap-gh-core.yml`: uses `repo_branches`, `default_branch`, and `aws_accounts` (as GitHub Environments)
+
 Current global rules:
 - `prod` is always required.
 - `preview` requires `dev`.

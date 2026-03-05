@@ -23,6 +23,15 @@
     - AWS trust policy pozwala temu tokenowi przyjąć rolę z `AWS_ROLE_TO_ASSUME`,
     - workflow uruchamia Terraform i tworzy OU + konta zgodnie z presetem.
 
+1. Uruchom workflow `bootstrap-iam-matrix`:
+    - workflow czyta `account_ids` ze stanu `bootstrap-org`,
+    - uruchamia `bootstrap-iam` per konto i tworzy role `gha-environment-deploy`.
+
+1. Uruchom workflow `bootstrap-gh-core`:
+    - tworzy branche repo zgodnie z presetem,
+    - ustawia `default_branch` z presetu,
+    - tworzy GitHub Environments zgodnie z listą `aws_accounts` z presetu.
+
 1. Docelowo będzie jeden workflow orchestratora `bootstrap-all`, który uruchomi:
     - `bootstrap-org` (OU + konta),
     - `bootstrap-iam` (OIDC + role w kontach member),

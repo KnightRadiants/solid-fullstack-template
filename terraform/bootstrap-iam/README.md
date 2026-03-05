@@ -50,6 +50,7 @@ Kolejne kroki to uruchamianie matrix/orchestrator oraz dalszy hardening policy.
 ## 1.2. Następny zakres implementacji
 
 1. Spiac workflow matrix z orchestratorem `bootstrap-all`, aby uruchamial sie automatycznie po `bootstrap-org`.
+1. Podpiac role per-environment do GitHub Environments w kroku `bootstrap-gh-bind`.
 1. Dalszy hardening policy-as-code do faktycznie uzywanych serwisow runtime.
 
 ## 1.3. Workflow manualny

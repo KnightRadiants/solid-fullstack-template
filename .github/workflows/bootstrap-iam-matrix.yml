@@ -30,6 +30,15 @@ jobs:
             aws_region: ${{ steps.cfg.outputs.aws_region }}
 
         steps:
+            - name: Guard template source repository
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  if [[ "${GITHUB_REPOSITORY}" == "KnightRadiants/solid-fullstack-template" ]]; then
+                    echo "::error::This workflow is blocked on template source repository (KnightRadiants/solid-fullstack-template). Use a repository created from this template."
+                    exit 1
+                  fi
+
             - name: Checkout
               uses: actions/checkout@v4
 
