@@ -7,12 +7,13 @@
 1. Jeśli to pierwsze repo na tym koncie AWS:
     - sklonuj repo lokalnie,
     - skonfiguruj `aws-cli` / Identity Federation (SSO),
-    - uruchom lokalnie Terraform `terraform/bootstrap-prerequisite`, który tworzy:
+    - uruchom lokalnie Terraform `terraform/prerequisite/aws`, który tworzy:
       - rolę OIDC dla GitHub Actions (np. `gha-bootstrap-org`),
       - bucket S3 dla backendów Terraform,
       - tabelę DynamoDB dla locków Terraform.
+    - wykonaj jednorazowo GitHub prerequisite (`terraform/prerequisite/gh`) i ustaw sekrety GitHub App dla workflow (pólautomatyczny krok).
 
-1. W GitHub (repo lub org) ustaw zmienne z outputów `bootstrap-prerequisite`:
+1. W GitHub (repo lub org) ustaw zmienne z outputów `terraform/prerequisite/aws`:
     - `AWS_REGION`
     - `AWS_ROLE_TO_ASSUME`
     - `TF_LOCK_TABLE`
@@ -29,7 +30,7 @@
 
 1. Uruchom workflow `bootstrap-gh-core`:
     - tworzy branche repo zgodnie z presetem,
-    - ustawia `default_branch` z presetu,
+    - ustawia `default_branch` z presetu (przez GitHub App token),
     - tworzy GitHub Environments zgodnie z listą `aws_accounts` z presetu.
 
 1. Uruchom workflow `bootstrap-gh-bind`:

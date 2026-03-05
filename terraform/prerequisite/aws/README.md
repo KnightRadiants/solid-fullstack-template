@@ -1,4 +1,4 @@
-# 1. Bootstrap Prerequisite
+# 1. AWS Prerequisite
 
 Ten katalog przygotowuje fundament pod automatyzacje GitHub Actions dla nowego repo:
 - rola OIDC dla GitHub Actions (IAM),
@@ -10,7 +10,7 @@ Stack tworzy backend remote state (S3 + DynamoDB) oraz role OIDC dla GitHub Acti
 
 1. Przejdź do katalogu:
     ```ps
-    Set-Location terraform/bootstrap-prerequisite
+    Set-Location terraform/prerequisite/aws
     ```
 1. Ustaw profil:
     ```ps
@@ -63,7 +63,7 @@ Stack tworzy backend remote state (S3 + DynamoDB) oraz role OIDC dla GitHub Acti
 ## 1.3. Następny zakres implementacji
 
 1. Uruchomić workflow `.github/workflows/bootstrap-org.yml` przez `workflow_dispatch`.
-1. Po zmianie uprawnień roli bootstrapowej uruchomić ponownie `terraform apply` w `bootstrap-prerequisite`, aby policy została zaktualizowana.
+1. Po zmianie uprawnień roli bootstrapowej uruchomić ponownie `terraform apply` w `terraform/prerequisite/aws`, aby policy została zaktualizowana.
 1. Ustawić wymagane Repo/Org Variables dla workflow:
    - `AWS_REGION` (np. `eu-central-1`)
    - `TF_STATE_BUCKET` (output `tf_state_bucket`)

@@ -17,5 +17,5 @@ tf_lock_table_name    = "<TF_LOCK_TABLE_NAME>"
 # debug_suffix  = "dbg01"
 
 tags = {
-  Environment = "bootstrap-prerequisite"
+  Environment = "prerequisite-aws"
 }
