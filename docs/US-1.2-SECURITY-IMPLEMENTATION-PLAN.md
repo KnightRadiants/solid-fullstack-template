@@ -68,7 +68,7 @@ Brakuje:
 1. Rozdzielic prerequisite GH na:
    - `terraform/prerequisite/gh/app/` (manifest flow GitHub App),
    - `terraform/prerequisite/gh/team/` (ensure team `administrators`, membership, opcjonalnie repo permissions),
-   - `terraform/prerequisite/gh/bootstrap-gh-prerequisite.py` (lokalny orchestrator).
+   - `terraform/prerequisite/gh/bootstrap-gh.py` (lokalny orchestrator).
 1. Dodac krok automatycznego ustawiania secrets/variables po `gh/app`:
    - `GH_APP_ID`
    - `GH_APP_PRIVATE_KEY`

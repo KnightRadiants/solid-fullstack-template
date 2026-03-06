@@ -1,3 +1,6 @@
 out/
+app/out/
 github-app-*.private-key.pem
 github-app-*.credentials.json
+**/github-app-*.private-key.pem
+**/github-app-*.credentials.json

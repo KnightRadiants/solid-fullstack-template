@@ -1,38 +1,59 @@
 # GitHub prerequisite (one-time per org)
 
-Ten krok wykonujesz raz na organizacje GitHub. Tworzy GitHub App, ktora daje workflowom uprawnienia governance na repo.
+Ten krok wykonujesz raz na organizacje GitHub.
 
-## 1. Wymagane uprawnienia appki
+Etap 0 sklada sie z trzech czesci:
+- `app/` - tworzenie GitHub App przez manifest flow,
+- `team/` - idempotentne zapewnienie teamu `administrators`,
+- `bootstrap-gh.py` - lokalny orchestrator, ktory spina oba kroki i od razu ustawia bootstrapowe secrets/variables.
 
-Repository permissions:
-- `Administration: Read and write`
-- `Contents: Read and write`
-- `Actions: Read and write`
-- `Environments: Read and write`
-- `Metadata: Read-only`
+## 1. Wymagania
 
-## 2. Utworzenie appki (semi-auto)
-
-1. Uruchom skrypt:
-   ```ps
-   Set-Location terraform/prerequisite/gh
-   python bootstrap-gh-app-manifest.py `
-     --org KnightRadiants `
-     --app-name "gha-template-bootstrap" `
-     --description "Bootstrap app for template governance" `
-     --output-dir "./out" `
-     --open-browser
+1. Zalogowany `gh` CLI z uprawnieniami administracyjnymi do org/repo:
+   ```ps1
+   gh auth login
+   gh auth status
    ```
-1. W przegladarce zatwierdz utworzenie appki.
-1. Po callbacku skrypt zapisze:
-   - `github-app-<APP_ID>.private-key.pem`
-   - `github-app-<APP_ID>.credentials.json`
-   - i wypisze `Install URL`.
-1. Zainstaluj appke na repo, ktore beda bootstrapowane.
-1. Jesli zmieniles permissiony appki po instalacji, zaakceptuj `Permission updates requested` w organizacji.
+1. Uprawnienia do tworzenia GitHub App i zarzadzania teamami/repo variables/secrets.
 
-## 3. Sekrety dla workflow
+## 2. Szybki start (zalecane)
 
-Ustaw Secrets (repo albo org):
-- `GH_APP_ID`
-- `GH_APP_PRIVATE_KEY` (z pliku PEM)
+```ps1
+Set-Location terraform/prerequisite/gh
+
+python bootstrap-gh.py `
+  --org KnightRadiants `
+  --bootstrap-repo solid-fullstack-template-manual `
+  --scope org `
+  --app-name "gha-template-bootstrap" `
+  --app-description "Bootstrap app for template governance" `
+  --open-browser `
+  --aws-region "eu-central-1" `
+  --aws-role-to-assume "arn:aws:iam::123456789012:role/gha-bootstrap-org" `
+  --tf-state-bucket "tfstate-123456789012-eu-central-1" `
+  --tf-lock-table "terraform-locks"
+```
+
+Co zrobi orchestrator:
+1. Utworzy GitHub App (albo uzyje istniejacych credentials z `app/out`, jesli juz sa).
+1. Zapewni team `administrators` i maintainera.
+1. Ustawi:
+   - `GH_APP_ID` (secret)
+   - `GH_APP_PRIVATE_KEY` (secret)
+   - `AWS_REGION` (variable, jesli podano)
+   - `AWS_ROLE_TO_ASSUME` (variable, jesli podano)
+   - `TF_STATE_BUCKET` (variable, jesli podano)
+   - `TF_LOCK_TABLE` (variable, jesli podano)
+   - `TF_STATE_KEY_PREFIX` (variable, opcjonalnie)
+
+Przy `--scope org` wartosci sa zapisywane jako org-level i ograniczone do `--bootstrap-repo` (`visibility=selected`).
+
+## 3. Tryb reczny
+
+- Tylko App: [app/README.md](app/README.md)
+- Tylko Team: [team/README.md](team/README.md)
+
+## 4. Instalacja appki
+
+Po utworzeniu appki zainstaluj ja na repo, ktore beda bootstrapowane.
+Jesli zmienisz permissiony appki po instalacji, zaakceptuj `Permission updates requested` w organizacji.
