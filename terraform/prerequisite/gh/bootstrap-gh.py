@@ -17,12 +17,14 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 DEFAULT_APP_PREFIX = "gha"
 MAX_GITHUB_APP_NAME_LENGTH = 34
 DEFAULT_ORG_SEGMENT_LENGTH = 20
 DEFAULT_APP_SUFFIX_LENGTH = 6
+GH_WRITE_MAX_ATTEMPTS = 4
 ANSI_RED = "\033[91m"
 ANSI_RESET = "\033[0m"
 
@@ -65,6 +67,60 @@ def run_command_checked(command: list[str], *, description: str = "") -> str:
         )
         raise RuntimeError(message)
     return result.stdout.strip()
+
+
+def is_retryable_gh_write_failure(result: subprocess.CompletedProcess[str]) -> bool:
+    error_text = "\n".join(part for part in [result.stderr.strip(), result.stdout.strip()] if part).lower()
+    retryable_patterns = [
+        "http 500",
+        "http 502",
+        "http 503",
+        "http 504",
+        "bad gateway",
+        "gateway timeout",
+        "temporarily unavailable",
+        "connection reset",
+        "connection timed out",
+    ]
+    return any(pattern in error_text for pattern in retryable_patterns)
+
+
+def run_command_checked_with_retry(
+    command: list[str],
+    *,
+    description: str = "",
+    max_attempts: int = GH_WRITE_MAX_ATTEMPTS,
+) -> str:
+    if description:
+        print_step(description)
+
+    last_result: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(1, max_attempts + 1):
+        result = run_command(command)
+        last_result = result
+        if result.returncode == 0:
+            return result.stdout.strip()
+
+        if attempt < max_attempts and is_retryable_gh_write_failure(result):
+            delay_seconds = attempt
+            print_step(
+                f"GitHub API returned a transient error. Retrying in {delay_seconds}s "
+                f"({attempt}/{max_attempts - 1} retries used)..."
+            )
+            time.sleep(delay_seconds)
+            continue
+
+        message = (
+            f"{description}\n" if description else ""
+        ) + (
+            f"Command failed ({result.returncode}): {' '.join(command)}\n"
+            f"STDERR:\n{result.stderr}\nSTDOUT:\n{result.stdout}"
+        )
+        raise RuntimeError(message)
+
+    if last_result is None:
+        raise RuntimeError(f"Command failed before execution: {' '.join(command)}")
+    raise RuntimeError(f"Command failed ({last_result.returncode}): {' '.join(command)}")
 
 
 def slugify(value: str) -> str:
@@ -505,7 +561,7 @@ def set_secret(name: str, value: str, *, scope: str, org: str, repo: str) -> Non
         command.extend(["--repo", f"{org}/{repo}"])
     else:
         command.extend(["--org", org, "--visibility", "selected", "--repos", repo])
-    run_command_checked(command, description=f"Setting GitHub secret '{name}'...")
+    run_command_checked_with_retry(command, description=f"Setting GitHub secret '{name}'...")
 
 
 def upsert_bootstrap_secrets(

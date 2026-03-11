@@ -17,10 +17,12 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 DEFAULT_BOOTSTRAP_ROLE_NAME = "gha-bootstrap-org"
 DEFAULT_LOCK_TABLE_NAME = "terraform-locks"
+GH_WRITE_MAX_ATTEMPTS = 4
 ANSI_GREEN = "\033[92m"
 ANSI_RED = "\033[91m"
 ANSI_RESET = "\033[0m"
@@ -70,6 +72,61 @@ def run_command_checked(command: list[str], *, cwd: Path | None = None, descript
         )
         raise RuntimeError(message)
     return result.stdout.strip()
+
+
+def is_retryable_gh_write_failure(result: subprocess.CompletedProcess[str]) -> bool:
+    error_text = "\n".join(part for part in [result.stderr.strip(), result.stdout.strip()] if part).lower()
+    retryable_patterns = [
+        "http 500",
+        "http 502",
+        "http 503",
+        "http 504",
+        "bad gateway",
+        "gateway timeout",
+        "temporarily unavailable",
+        "connection reset",
+        "connection timed out",
+    ]
+    return any(pattern in error_text for pattern in retryable_patterns)
+
+
+def run_command_checked_with_retry(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    description: str = "",
+    max_attempts: int = GH_WRITE_MAX_ATTEMPTS,
+) -> str:
+    if description:
+        print_step(description)
+
+    last_result: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(1, max_attempts + 1):
+        result = run_command(command, cwd=cwd)
+        last_result = result
+        if result.returncode == 0:
+            return result.stdout.strip()
+
+        if attempt < max_attempts and is_retryable_gh_write_failure(result):
+            delay_seconds = attempt
+            print_step(
+                f"GitHub API returned a transient error. Retrying in {delay_seconds}s "
+                f"({attempt}/{max_attempts - 1} retries used)..."
+            )
+            time.sleep(delay_seconds)
+            continue
+
+        message = (
+            f"{description}\n" if description else ""
+        ) + (
+            f"Command failed ({result.returncode}): {' '.join(command)}\n"
+            f"STDERR:\n{result.stderr}\nSTDOUT:\n{result.stdout}"
+        )
+        raise RuntimeError(message)
+
+    if last_result is None:
+        raise RuntimeError(f"Command failed before execution: {' '.join(command)}")
+    raise RuntimeError(f"Command failed ({last_result.returncode}): {' '.join(command)}")
 
 
 def build_tf_state_bucket_name(*, aws_account_id: str, aws_region: str) -> str:
@@ -478,7 +535,7 @@ def set_variable(name: str, value: str, *, org: str, repo: str) -> None:
         "--repos",
         repo,
     ]
-    run_command_checked(
+    run_command_checked_with_retry(
         command,
         description=f"Setting GitHub org variable '{name}' for repo '{org}/{repo}'...",
     )
