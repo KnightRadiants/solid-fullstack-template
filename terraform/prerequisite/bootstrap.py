@@ -10,6 +10,7 @@ Stage order:
 from __future__ import annotations
 
 import argparse
+import configparser
 import os
 import re
 import subprocess
@@ -51,6 +52,85 @@ def run_command_capture(command: list[str], *, cwd: Path | None = None) -> str:
     if result.returncode != 0:
         return ""
     return result.stdout.strip()
+
+
+def aws_config_dir() -> Path:
+    config_path = os.environ.get("AWS_CONFIG_FILE", "")
+    credentials_path = os.environ.get("AWS_SHARED_CREDENTIALS_FILE", "")
+
+    if config_path:
+        return Path(config_path).expanduser().resolve().parent
+    if credentials_path:
+        return Path(credentials_path).expanduser().resolve().parent
+    return Path.home() / ".aws"
+
+
+def normalize_profile_name(section: str, *, from_config: bool) -> str:
+    if not from_config:
+        return section.strip()
+    if section == "default":
+        return "default"
+    if section.startswith("profile "):
+        return section[len("profile ") :].strip()
+    return section.strip()
+
+
+def list_available_aws_profiles() -> list[str]:
+    profiles: set[str] = set()
+    files = [
+        (Path(os.environ.get("AWS_CONFIG_FILE", Path.home() / ".aws" / "config")).expanduser(), True),
+        (
+            Path(os.environ.get("AWS_SHARED_CREDENTIALS_FILE", Path.home() / ".aws" / "credentials")).expanduser(),
+            False,
+        ),
+    ]
+
+    for path, from_config in files:
+        if not path.exists():
+            continue
+
+        parser = configparser.RawConfigParser()
+        parser.read(path, encoding="utf-8")
+        for section in parser.sections():
+            profile = normalize_profile_name(section, from_config=from_config)
+            if profile:
+                profiles.add(profile)
+
+    return sorted(profiles, key=str.lower)
+
+
+def prompt_for_aws_profile(profiles: list[str]) -> str:
+    if not sys.stdin.isatty():
+        available = ", ".join(profiles) if profiles else "none found"
+        raise RuntimeError(
+            "Missing AWS profile. Set AWS_PROFILE, pass --aws-profile, or run interactively. "
+            f"Available profiles in {aws_config_dir()}: {available}."
+        )
+
+    print(f"AWS profile is not set. Available profiles in {aws_config_dir()}:")
+    if not profiles:
+        print("  No profiles found in config files.")
+        while True:
+            answer = input("AWS profile: ").strip()
+            if answer:
+                return answer
+            print("Value is required.")
+
+    selected_index = select_with_arrows("Select AWS profile", profiles)
+    return profiles[selected_index]
+
+
+def resolve_aws_profile(profile_arg: str) -> str:
+    explicit_profile = profile_arg.strip()
+    if explicit_profile:
+        return explicit_profile
+
+    env_profile = os.environ.get("AWS_PROFILE", "").strip()
+    if env_profile:
+        return env_profile
+
+    profiles = list_available_aws_profiles()
+    return prompt_for_aws_profile(profiles)
 
 
 def parse_args() -> argparse.Namespace:
@@ -246,6 +326,8 @@ def main() -> int:
     args.org = prompt_if_missing(args.org, "GitHub organization")
     args.repo = prompt_if_missing(args.repo, "Bootstrap repository")
     args.aws_region = prompt_for_aws_region(args.aws_region)
+    args.aws_profile = resolve_aws_profile(args.aws_profile)
+    os.environ["AWS_PROFILE"] = args.aws_profile
     print_step(f"Resolved bootstrap context: org='{args.org}', repo='{args.repo}', region='{args.aws_region}'.")
 
     aws_script = base_dir / "aws" / "bootstrap-aws.py"
