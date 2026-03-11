@@ -30,11 +30,12 @@ python bootstrap-gh.py `
   --org KnightRadiants `
   --bootstrap-repo solid-fullstack-template-manual `
   --scope org `
+  --aws-region eu-central-1 `
   --app-description "Bootstrap app for template governance"
 ```
 
 Co zrobi orchestrator:
-1. Utworzy GitHub App (albo uzyje istniejacych credentials z `app/out` lub ze wspoldzielonego cache na tym samym komputerze, jesli juz sa).
+1. Utworzy GitHub App (albo uzyje istniejacych credentials z `app/out`, ze wspoldzielonego cache na tym samym komputerze albo z AWS SSM Parameter Store, jesli juz sa).
 1. Zapewni team `administrators` i maintainera.
 1. Ustawi:
    - `GH_APP_ID` (secret)
@@ -44,6 +45,8 @@ Przy `--scope org` wartosci sa zapisywane jako org-level i ograniczone do `--boo
 Nazwa Appki jest domyslnie skladana wedlug konwencji `gha-<pierwsze-20-znakow-org>-<hash6>`.
 Ten schemat miesci sie w limicie GitHuba i jest stabilny dla danej organizacji.
 Jesli pominiesz `--app-name`, skrypt najpierw pokaze Appki znalezione w `app/out` oraz we wspoldzielonym cache credentials dla danej organizacji i pozwoli wybrac jedna strzalkami albo utworzyc nowa z domyslna nazwa wynikajaca z organizacji.
+Przy starcie skrypt probuje zsynchronizowac zapisane credentials Appki z AWS SSM Parameter Store (`SecureString`) do lokalnego cache.
+Po wybraniu albo utworzeniu Appki wykonuje upsert jej `app_id` i `private_key_pem` do AWS SSM jako backup/fallback.
 W trybie nieinteraktywnym skrypt moze automatycznie zre-uzyc konwencyjna Appke albo jednoznacznie jedyny znaleziony bundle credentials z tych lokalizacji.
 Przegladarka dla manifest flow otwiera sie automatycznie. Jesli chcesz to wylaczyc, uzyj `--no-open-browser`.
 

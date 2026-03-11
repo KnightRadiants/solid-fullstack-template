@@ -273,6 +273,8 @@ def main() -> int:
         args.repo,
         "--scope",
         args.scope,
+        "--aws-region",
+        args.aws_region,
         "--app-description",
         args.app_description,
         "--output-dir",
@@ -285,6 +287,8 @@ def main() -> int:
 
     if args.app_name.strip():
         gh_command.extend(["--app-name", args.app_name.strip()])
+    if args.aws_profile.strip():
+        gh_command.extend(["--aws-profile", args.aws_profile.strip()])
     if args.homepage_url.strip():
         gh_command.extend(["--homepage-url", args.homepage_url.strip()])
     if args.open_browser:

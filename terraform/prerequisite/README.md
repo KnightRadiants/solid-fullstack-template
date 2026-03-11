@@ -31,6 +31,8 @@ GitHub App jest domyslnie nazywana wedlug konwencji `gha-<pierwsze-20-znakow-org
 Ten schemat miesci sie w limicie GitHuba i jest stabilny dla danej organizacji.
 Jesli pominiesz `--app-name`, skrypt GitHub najpierw pokaze Appki znalezione w lokalnym `gh/app/out` oraz we wspoldzielonym cache credentials na tym samym komputerze.
 Pozwoli wybrac jedna strzalkami albo utworzyc nowa z domyslna nazwa wynikajaca z organizacji.
+Przy starcie skrypt probuje tez zsynchronizowac zapisane credentials Appki z AWS SSM Parameter Store (`SecureString`) do lokalnego cache.
+Po wybraniu albo utworzeniu Appki wykonuje upsert jej `app_id` i `private_key_pem` do AWS SSM jako backup/fallback.
 W trybie nieinteraktywnym skrypt moze automatycznie zre-uzyc konwencyjna Appke albo jednoznacznie jedyny znaleziony bundle credentials z tych lokalizacji.
 Przegladarka dla GitHub App manifest flow otwiera sie automatycznie. Jesli chcesz to wylaczyc, uzyj `--no-open-browser`.
 Do org-level variables/secrets/team management potrzebny jest `gh` z zakresem `admin:org`.

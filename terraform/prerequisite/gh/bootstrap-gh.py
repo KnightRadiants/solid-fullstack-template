@@ -27,6 +27,7 @@ DEFAULT_ORG_SEGMENT_LENGTH = 20
 DEFAULT_APP_SUFFIX_LENGTH = 6
 GH_WRITE_MAX_ATTEMPTS = 4
 SHARED_CREDENTIALS_DIR_NAME = "gh-app-credentials"
+SSM_APP_CREDENTIALS_ROOT = "/solid-fullstack-template/bootstrap/github-apps"
 ANSI_RED = "\033[91m"
 ANSI_RESET = "\033[0m"
 
@@ -169,6 +170,59 @@ def credential_search_dirs(output_dir: Path, *, owner: str) -> list[Path]:
     return search_dirs
 
 
+def resolve_aws_region(region_arg: str) -> str:
+    return (
+        region_arg.strip()
+        or os.environ.get("AWS_REGION", "").strip()
+        or os.environ.get("AWS_DEFAULT_REGION", "").strip()
+    )
+
+
+def ssm_parameter_path(*, owner: str, app_id: str) -> str:
+    return f"{SSM_APP_CREDENTIALS_ROOT}/{slugify(owner or 'default-org')}/{app_id}"
+
+
+def ssm_storage_enabled(*, aws_region: str) -> bool:
+    return bool(aws_region.strip())
+
+
+def ssm_payload_from_credentials(*, owner: str, payload: dict, private_key_pem: str) -> dict[str, str]:
+    return {
+        "app_id": str(payload["id"]),
+        "app_name": str(payload.get("name", "")).strip(),
+        "app_slug": str(payload.get("slug", "")).strip(),
+        "owner_login": owner,
+        "private_key_pem": private_key_pem,
+    }
+
+
+def credentials_files_from_ssm_payload(ssm_payload: dict[str, str], *, target_dir: Path) -> tuple[Path, Path]:
+    app_id = str(ssm_payload.get("app_id", "")).strip()
+    if not app_id:
+        raise RuntimeError("SSM GitHub App payload is missing app_id.")
+
+    private_key_pem = str(ssm_payload.get("private_key_pem", "")).strip()
+    if not private_key_pem:
+        raise RuntimeError(f"SSM GitHub App payload for app '{app_id}' is missing private_key_pem.")
+
+    owner_login = str(ssm_payload.get("owner_login", "")).strip()
+    credentials_payload = {
+        "id": int(app_id) if app_id.isdigit() else app_id,
+        "name": str(ssm_payload.get("app_name", "")).strip(),
+        "slug": str(ssm_payload.get("app_slug", "")).strip(),
+        "owner": {
+            "login": owner_login,
+        },
+    }
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    credentials_file = target_dir / f"github-app-{app_id}.credentials.json"
+    private_key_file = target_dir / f"github-app-{app_id}.private-key.pem"
+    credentials_file.write_text(json.dumps(credentials_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    private_key_file.write_text(private_key_pem, encoding="utf-8")
+    return credentials_file, private_key_file
+
+
 def prompt_with_default(value: str, prompt_text: str, *, default: str = "") -> str:
     normalized = value.strip()
     if normalized:
@@ -285,6 +339,8 @@ def parse_args() -> argparse.Namespace:
         default="Bootstrap app for template governance",
         help="GitHub App description",
     )
+    parser.add_argument("--aws-region", default="", help="AWS region used for SSM SecureString app credential storage")
+    parser.add_argument("--aws-profile", default="", help="AWS profile used for SSM SecureString app credential storage")
     parser.add_argument("--homepage-url", default="", help="Optional app homepage URL")
     parser.add_argument("--output-dir", default="app/out", help="Directory for app credentials output")
     browser_group = parser.add_mutually_exclusive_group()
@@ -495,6 +551,93 @@ def sync_local_credentials_to_shared_cache(output_dir: Path, *, owner: str) -> N
         mirror_bundle_to_directory(credentials_file, private_key_file, cache_dir)
 
 
+def aws_command_base(*, aws_region: str, aws_profile: str) -> list[str]:
+    command = ["aws"]
+    if aws_profile.strip():
+        command.extend(["--profile", aws_profile.strip()])
+    if aws_region.strip():
+        command.extend(["--region", aws_region.strip()])
+    return command
+
+
+def sync_ssm_credentials_to_shared_cache(*, owner: str, aws_region: str, aws_profile: str) -> None:
+    if not ssm_storage_enabled(aws_region=aws_region):
+        return
+
+    path = f"{SSM_APP_CREDENTIALS_ROOT}/{slugify(owner or 'default-org')}"
+    command = aws_command_base(aws_region=aws_region, aws_profile=aws_profile) + [
+        "ssm",
+        "get-parameters-by-path",
+        "--path",
+        path,
+        "--with-decryption",
+        "--recursive",
+        "--output",
+        "json",
+    ]
+
+    print_step("Checking AWS SSM for stored GitHub App credentials...")
+    result = run_command(command)
+    if result.returncode != 0:
+        error_text = "\n".join(part for part in [result.stderr.strip(), result.stdout.strip()] if part).strip().lower()
+        if any(pattern in error_text for pattern in ["parameternotfound", "accessdenied", "unrecognizedclient", "expiredtoken"]):
+            print_step("Skipping AWS SSM GitHub App credential sync because stored credentials are unavailable.")
+            return
+        raise RuntimeError(
+            "Failed to read GitHub App credentials from AWS SSM.\n"
+            f"Command failed ({result.returncode}): {' '.join(command)}\n"
+            f"STDERR:\n{result.stderr}\nSTDOUT:\n{result.stdout}"
+        )
+
+    try:
+        response = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("AWS SSM returned invalid JSON for GitHub App credential sync.") from exc
+
+    parameters = response.get("Parameters", [])
+    if not parameters:
+        print_step("No GitHub App credentials found in AWS SSM for this organization.")
+        return
+
+    cache_dir = shared_credentials_dir(owner)
+    for parameter in parameters:
+        raw_value = str(parameter.get("Value", "")).strip()
+        if not raw_value:
+            continue
+        try:
+            payload = json.loads(raw_value)
+        except json.JSONDecodeError:
+            continue
+        credentials_files_from_ssm_payload(payload, target_dir=cache_dir)
+
+
+def store_credentials_in_ssm(*, owner: str, payload: dict, private_key_pem: str, aws_region: str, aws_profile: str) -> None:
+    if not ssm_storage_enabled(aws_region=aws_region):
+        print_step("Skipping AWS SSM GitHub App credential upload because AWS region is not configured for this step.")
+        return
+
+    app_id = str(payload["id"])
+    parameter_name = ssm_parameter_path(owner=owner, app_id=app_id)
+    parameter_value = json.dumps(
+        ssm_payload_from_credentials(owner=owner, payload=payload, private_key_pem=private_key_pem),
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    command = aws_command_base(aws_region=aws_region, aws_profile=aws_profile) + [
+        "ssm",
+        "put-parameter",
+        "--name",
+        parameter_name,
+        "--type",
+        "SecureString",
+        "--value",
+        parameter_value,
+        "--overwrite",
+    ]
+
+    run_command_checked(command, description=f"Uploading GitHub App credentials to AWS SSM '{parameter_name}'...")
+
+
 def format_app_option(payload: dict) -> str:
     name = str(payload.get("name", "")).strip() or "(unnamed)"
     slug = str(payload.get("slug", "")).strip() or "n/a"
@@ -652,10 +795,13 @@ def main() -> int:
     args = parse_args()
     print_step(f"Starting GitHub prerequisite bootstrap for org='{args.org}', repo='{args.bootstrap_repo}'.")
     verify_cli_prerequisites()
+    aws_region = resolve_aws_region(args.aws_region)
+    aws_profile = args.aws_profile.strip() or os.environ.get("AWS_PROFILE", "").strip()
 
     base_dir = Path(__file__).resolve().parent
     output_dir = (base_dir / args.output_dir).resolve()
     sync_local_credentials_to_shared_cache(output_dir, owner=args.org)
+    sync_ssm_credentials_to_shared_cache(owner=args.org, aws_region=aws_region, aws_profile=aws_profile)
     search_dirs = credential_search_dirs(output_dir, owner=args.org)
     app_script = base_dir / "app" / "bootstrap-gh-app-manifest.py"
     team_script = base_dir / "team" / "bootstrap-gh-team.py"
@@ -714,6 +860,13 @@ def main() -> int:
 
     app_id = str(payload["id"])
     private_key_pem = private_key_file.read_text(encoding="utf-8")
+    store_credentials_in_ssm(
+        owner=args.org,
+        payload=payload,
+        private_key_pem=private_key_pem,
+        aws_region=aws_region,
+        aws_profile=aws_profile,
+    )
 
     grant_admin_repo = None if args.skip_team_repo_admin_grant else args.bootstrap_repo
     ensure_team(
