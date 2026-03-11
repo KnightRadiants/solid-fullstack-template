@@ -34,7 +34,7 @@ python bootstrap-gh.py `
 ```
 
 Co zrobi orchestrator:
-1. Utworzy GitHub App (albo uzyje istniejacych credentials z `app/out`, jesli juz sa).
+1. Utworzy GitHub App (albo uzyje istniejacych credentials z `app/out` lub ze wspoldzielonego cache na tym samym komputerze, jesli juz sa).
 1. Zapewni team `administrators` i maintainera.
 1. Ustawi:
    - `GH_APP_ID` (secret)
@@ -43,8 +43,8 @@ Co zrobi orchestrator:
 Przy `--scope org` wartosci sa zapisywane jako org-level i ograniczone do `--bootstrap-repo` (`visibility=selected`).
 Nazwa Appki jest domyslnie skladana wedlug konwencji `gha-<pierwsze-20-znakow-org>-<hash6>`.
 Ten schemat miesci sie w limicie GitHuba i jest stabilny dla danej organizacji.
-Jesli pominiesz `--app-name`, skrypt najpierw pokaze Appki znalezione lokalnie w `app/out` dla danej organizacji i pozwoli wybrac jedna strzalkami albo utworzyc nowa z domyslna nazwa wynikajaca z organizacji.
-W trybie nieinteraktywnym skrypt moze automatycznie zre-uzyc konwencyjna Appke albo jednoznacznie jedyny znaleziony bundle credentials.
+Jesli pominiesz `--app-name`, skrypt najpierw pokaze Appki znalezione w `app/out` oraz we wspoldzielonym cache credentials dla danej organizacji i pozwoli wybrac jedna strzalkami albo utworzyc nowa z domyslna nazwa wynikajaca z organizacji.
+W trybie nieinteraktywnym skrypt moze automatycznie zre-uzyc konwencyjna Appke albo jednoznacznie jedyny znaleziony bundle credentials z tych lokalizacji.
 Przegladarka dla manifest flow otwiera sie automatycznie. Jesli chcesz to wylaczyc, uzyj `--no-open-browser`.
 
 Zmienne AWS bootstrapowe ustawia osobno [../aws/bootstrap-aws.py](../aws/bootstrap-aws.py).

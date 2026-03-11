@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -25,6 +26,7 @@ MAX_GITHUB_APP_NAME_LENGTH = 34
 DEFAULT_ORG_SEGMENT_LENGTH = 20
 DEFAULT_APP_SUFFIX_LENGTH = 6
 GH_WRITE_MAX_ATTEMPTS = 4
+SHARED_CREDENTIALS_DIR_NAME = "gh-app-credentials"
 ANSI_RED = "\033[91m"
 ANSI_RESET = "\033[0m"
 
@@ -136,6 +138,35 @@ def build_default_app_name(org: str) -> str:
     suffix = hashlib.sha1(org.strip().lower().encode("utf-8")).hexdigest()[:DEFAULT_APP_SUFFIX_LENGTH]
     app_name = f"{DEFAULT_APP_PREFIX}-{org_segment}-{suffix}"
     return app_name[:MAX_GITHUB_APP_NAME_LENGTH].strip("-")
+
+
+def shared_credentials_root() -> Path:
+    if os.name == "nt":
+        local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+        if local_app_data:
+            return Path(local_app_data) / "solid-fullstack-template" / SHARED_CREDENTIALS_DIR_NAME
+
+    xdg_cache_home = os.environ.get("XDG_CACHE_HOME", "").strip()
+    if xdg_cache_home:
+        return Path(xdg_cache_home) / "solid-fullstack-template" / SHARED_CREDENTIALS_DIR_NAME
+    return Path.home() / ".cache" / "solid-fullstack-template" / SHARED_CREDENTIALS_DIR_NAME
+
+
+def shared_credentials_dir(owner: str) -> Path:
+    return shared_credentials_root() / slugify(owner or "default-org")
+
+
+def credential_search_dirs(output_dir: Path, *, owner: str) -> list[Path]:
+    seen: set[str] = set()
+    search_dirs: list[Path] = []
+    for candidate in [output_dir, shared_credentials_dir(owner)]:
+        resolved = candidate.expanduser().resolve()
+        key = str(resolved).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        search_dirs.append(resolved)
+    return search_dirs
 
 
 def prompt_with_default(value: str, prompt_text: str, *, default: str = "") -> str:
@@ -348,36 +379,46 @@ def ensure_gh_scope(required_scope: str) -> None:
     )
 
 
-def collect_credentials_bundles(output_dir: Path) -> list[tuple[float, Path, Path, dict]]:
-    candidates: list[tuple[float, Path, Path, dict]] = []
-    for credentials_file in output_dir.glob("github-app-*.credentials.json"):
-        try:
-            data = json.loads(credentials_file.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
-        app_id = data.get("id")
-        if not app_id:
+def collect_credentials_bundles(search_dirs: list[Path]) -> list[tuple[float, Path, Path, dict]]:
+    candidates_by_app_id: dict[str, tuple[float, Path, Path, dict]] = {}
+
+    for search_dir in search_dirs:
+        if not search_dir.exists():
             continue
 
-        private_key_file = output_dir / f"github-app-{app_id}.private-key.pem"
-        if not private_key_file.exists():
-            continue
+        for credentials_file in search_dir.glob("github-app-*.credentials.json"):
+            try:
+                data = json.loads(credentials_file.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
 
-        candidates.append((credentials_file.stat().st_mtime, credentials_file, private_key_file, data))
+            app_id = str(data.get("id", "")).strip()
+            if not app_id:
+                continue
 
+            private_key_file = search_dir / f"github-app-{app_id}.private-key.pem"
+            if not private_key_file.exists():
+                continue
+
+            candidate = (credentials_file.stat().st_mtime, credentials_file, private_key_file, data)
+            existing = candidates_by_app_id.get(app_id)
+            if existing is None or candidate[0] > existing[0]:
+                candidates_by_app_id[app_id] = candidate
+
+    candidates = list(candidates_by_app_id.values())
     candidates.sort(key=lambda item: item[0], reverse=True)
     return candidates
 
 
-def snapshot_credentials_state(output_dir: Path) -> dict[str, float]:
+def snapshot_credentials_state(search_dirs: list[Path]) -> dict[str, float]:
     return {
         str(credentials_file.resolve()): credentials_file.stat().st_mtime
-        for _, credentials_file, _, _ in collect_credentials_bundles(output_dir)
+        for _, credentials_file, _, _ in collect_credentials_bundles(search_dirs)
     }
 
 
 def find_existing_credentials(
-    output_dir: Path,
+    search_dirs: list[Path],
     app_name: str,
     *,
     owner: str = "",
@@ -385,7 +426,7 @@ def find_existing_credentials(
     expected_slug = slugify(app_name)
     expected_owner = owner.strip().lower()
 
-    for _, credentials_file, private_key_file, data in collect_credentials_bundles(output_dir):
+    for _, credentials_file, private_key_file, data in collect_credentials_bundles(search_dirs):
         app_slug = str(data.get("slug", "")).strip().lower()
         app_display_name = str(data.get("name", "")).strip()
         owner_login = str(data.get("owner", {}).get("login", "")).strip().lower()
@@ -400,7 +441,7 @@ def find_existing_credentials(
 
 
 def find_recent_credentials(
-    output_dir: Path,
+    search_dirs: list[Path],
     *,
     owner: str = "",
     previous_state: dict[str, float] | None = None,
@@ -408,7 +449,7 @@ def find_recent_credentials(
     expected_owner = owner.strip().lower()
     previous_state = previous_state or {}
 
-    for modified_at, credentials_file, private_key_file, data in collect_credentials_bundles(output_dir):
+    for modified_at, credentials_file, private_key_file, data in collect_credentials_bundles(search_dirs):
         owner_login = str(data.get("owner", {}).get("login", "")).strip().lower()
         current_key = str(credentials_file.resolve())
         previous_mtime = previous_state.get(current_key)
@@ -422,17 +463,36 @@ def find_recent_credentials(
     return None
 
 
-def list_known_credentials(output_dir: Path, *, owner: str = "") -> list[tuple[Path, Path, dict]]:
+def list_known_credentials(search_dirs: list[Path], *, owner: str = "") -> list[tuple[Path, Path, dict]]:
     expected_owner = owner.strip().lower()
     bundles: list[tuple[Path, Path, dict]] = []
 
-    for _, credentials_file, private_key_file, data in collect_credentials_bundles(output_dir):
+    for _, credentials_file, private_key_file, data in collect_credentials_bundles(search_dirs):
         owner_login = str(data.get("owner", {}).get("login", "")).strip().lower()
         if expected_owner and owner_login != expected_owner:
             continue
         bundles.append((credentials_file, private_key_file, data))
 
     return bundles
+
+
+def mirror_bundle_to_directory(credentials_file: Path, private_key_file: Path, target_dir: Path) -> tuple[Path, Path]:
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_credentials_file = target_dir / credentials_file.name
+    target_private_key_file = target_dir / private_key_file.name
+
+    if credentials_file.resolve() != target_credentials_file.resolve():
+        shutil.copy2(credentials_file, target_credentials_file)
+    if private_key_file.resolve() != target_private_key_file.resolve():
+        shutil.copy2(private_key_file, target_private_key_file)
+
+    return target_credentials_file, target_private_key_file
+
+
+def sync_local_credentials_to_shared_cache(output_dir: Path, *, owner: str) -> None:
+    cache_dir = shared_credentials_dir(owner)
+    for _, credentials_file, private_key_file, _ in collect_credentials_bundles([output_dir]):
+        mirror_bundle_to_directory(credentials_file, private_key_file, cache_dir)
 
 
 def format_app_option(payload: dict) -> str:
@@ -444,27 +504,27 @@ def format_app_option(payload: dict) -> str:
 
 def resolve_app_target(
     *,
-    output_dir: Path,
+    search_dirs: list[Path],
     owner: str,
     requested_app_name: str,
     force_create_app: bool,
 ) -> tuple[str, tuple[Path, Path, dict] | None]:
     target_app_name = requested_app_name.strip() or build_default_app_name(owner)
-    known_credentials = list_known_credentials(output_dir, owner=owner)
+    known_credentials = list_known_credentials(search_dirs, owner=owner)
 
     if force_create_app:
         app_name = prompt_with_default(target_app_name, "New GitHub App name", default=target_app_name)
         return app_name, None
 
     if requested_app_name.strip():
-        explicit_bundle = find_existing_credentials(output_dir, target_app_name, owner=owner)
+        explicit_bundle = find_existing_credentials(search_dirs, target_app_name, owner=owner)
         if explicit_bundle:
             print_step(f"Reusing GitHub App matching requested name: {target_app_name}.")
             return target_app_name, explicit_bundle
         return target_app_name, None
 
     if not sys.stdin.isatty():
-        conventional_bundle = find_existing_credentials(output_dir, target_app_name, owner=owner)
+        conventional_bundle = find_existing_credentials(search_dirs, target_app_name, owner=owner)
         if conventional_bundle:
             print_step(f"Reusing GitHub App matching expected name: {target_app_name}.")
             return target_app_name, conventional_bundle
@@ -595,11 +655,13 @@ def main() -> int:
 
     base_dir = Path(__file__).resolve().parent
     output_dir = (base_dir / args.output_dir).resolve()
+    sync_local_credentials_to_shared_cache(output_dir, owner=args.org)
+    search_dirs = credential_search_dirs(output_dir, owner=args.org)
     app_script = base_dir / "app" / "bootstrap-gh-app-manifest.py"
     team_script = base_dir / "team" / "bootstrap-gh-team.py"
 
     app_name, credentials_bundle = resolve_app_target(
-        output_dir=output_dir,
+        search_dirs=search_dirs,
         owner=args.org,
         requested_app_name=args.app_name,
         force_create_app=args.force_create_app,
@@ -607,10 +669,12 @@ def main() -> int:
 
     if credentials_bundle:
         credentials_file, private_key_file, payload = credentials_bundle
+        credentials_file, private_key_file = mirror_bundle_to_directory(credentials_file, private_key_file, output_dir)
+        mirror_bundle_to_directory(credentials_file, private_key_file, shared_credentials_dir(args.org))
         print_step("Reusing existing GitHub App credentials from disk.")
         print(f"Reusing existing app credentials: {credentials_file}")
     else:
-        previous_state = snapshot_credentials_state(output_dir)
+        previous_state = snapshot_credentials_state(search_dirs)
         run_app_bootstrap(
             script_path=app_script,
             org=args.org,
@@ -621,13 +685,13 @@ def main() -> int:
             open_browser=args.open_browser,
         )
         credentials_bundle = find_existing_credentials(
-            output_dir,
+            search_dirs,
             app_name,
             owner=args.org,
         )
         if not credentials_bundle:
             credentials_bundle = find_recent_credentials(
-                output_dir,
+                search_dirs,
                 owner=args.org,
                 previous_state=previous_state,
             )
@@ -645,6 +709,8 @@ def main() -> int:
                 "Check app creation output and rerun with --force-create-app if needed."
             )
         credentials_file, private_key_file, payload = credentials_bundle
+        credentials_file, private_key_file = mirror_bundle_to_directory(credentials_file, private_key_file, output_dir)
+        mirror_bundle_to_directory(credentials_file, private_key_file, shared_credentials_dir(args.org))
 
     app_id = str(payload["id"])
     private_key_pem = private_key_file.read_text(encoding="utf-8")
