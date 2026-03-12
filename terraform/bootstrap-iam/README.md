@@ -4,10 +4,10 @@ Tworzy IAM OIDC role `gha-environment-deploy` w kontach utworzonych przez `boots
 
 ## 1. Jak to dziala
 
-1. `bootstrap-iam-matrix.yml` czyta `account_ids` ze state `bootstrap-org`
+1. Job `resolve-targets` w `bootstrap-all.yml` czyta `account_ids` ze state `bootstrap-org`
 1. Buduje matrix: `environment_name -> target_account_id`
-1. Dla kazdego konta uruchamia `bootstrap-iam.yml` (workflow wewnetrzny)
-1. `bootstrap-iam.yml` tworzy OIDC provider + role IAM w koncie docelowym
+1. Job `bootstrap-iam` uruchamia ten sam kod dla kazdego konta
+1. `bootstrap-iam` tworzy OIDC provider + role IAM w koncie docelowym
 
 ## 2. Co jest tworzone
 
@@ -17,14 +17,10 @@ Tworzy IAM OIDC role `gha-environment-deploy` w kontach utworzonych przez `boots
   - `repo:<github_org>/<github_repo>:environment:<environment_name>`
 - Policy-as-code zalezne od `environment_name` (`prod`, `dev`, `preview`, `shared`, `logging`)
 
-## 3. Workflow matrix (manualny run)
+## 3. Workflow bootstrap-all
 
-Inputy `bootstrap-iam-matrix.yml`:
-- `app_slug` (wymagane)
-- `environments` (opcjonalny filtr, np. `prod,dev,preview`)
-- `aws_region` (opcjonalny override)
-
-Zalecane uruchomienie: przez `bootstrap-all`.
+Ten etap jest wykonywany tylko jako job matrix wewnatrz `bootstrap-all`.
+Nie ma osobnego manualnego workflow dla `bootstrap-iam`.
 
 ## 4. Lokalny run (fallback)
 

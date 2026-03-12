@@ -30,9 +30,9 @@ Uruchom workflow `bootstrap-all` i podaj:
 - `preset` (`minimal`, `dev-lite`, `dev-standard`, `release`, `full-qa`)
 - `aws_region` (opcjonalnie; puste = `AWS_REGION` z Variables)
 
-`bootstrap-all` uruchamia automatycznie:
+`bootstrap-all` uruchamia automatycznie joby:
 1. `bootstrap-org` (OU + konta AWS z presetu)
-1. `bootstrap-iam-matrix` (rola `gha-environment-deploy` w kazdym koncie)
+1. `resolve-targets` + `bootstrap-iam` (rola `gha-environment-deploy` w kazdym koncie)
 1. `bootstrap-gh-core` (branche, default branch, GitHub Environments)
 1. `bootstrap-gh-bind` (AWS role vars per GitHub Environment)
 
@@ -41,10 +41,10 @@ Szczegoly workflow:
 
 ## 3. Manualny fallback (gdy nie uzywasz orchestratora)
 
-1. `bootstrap-org`
-1. `bootstrap-iam-matrix`
-1. `bootstrap-gh-core`
-1. `bootstrap-gh-bind`
+Nie ma osobnych bootstrap workflowow do recznego odpalania.
+Fallbackiem sa lokalne kroki opisane w:
+- [terraform/bootstrap-org/README.md](terraform/bootstrap-org/README.md)
+- [terraform/bootstrap-iam/README.md](terraform/bootstrap-iam/README.md)
 
 ## 4. Presety
 

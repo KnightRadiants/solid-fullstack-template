@@ -93,10 +93,6 @@ Brakuje:
 ### Pliki
 
 - `.github/workflows/bootstrap-all.yml`
-- `.github/workflows/bootstrap-org.yml`
-- `.github/workflows/bootstrap-iam-matrix.yml`
-- `.github/workflows/bootstrap-gh-core.yml`
-- `.github/workflows/bootstrap-gh-bind.yml`
 
 ### Test akceptacyjny
 

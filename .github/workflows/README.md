@@ -2,10 +2,11 @@
 
 ## Zalecony workflow: `bootstrap-all.yml`
 
-Uruchamiasz jeden workflow `workflow_dispatch`, a on wykonuje pelny lancuch:
+Uruchamiasz jeden workflow `workflow_dispatch`, a on wykonuje pelny lancuch jobow:
 
 1. `bootstrap-org`
-1. `bootstrap-iam-matrix`
+1. `resolve-targets`
+1. `bootstrap-iam` (matrix po kontach)
 1. `bootstrap-gh-core`
 1. `bootstrap-gh-bind`
 
@@ -38,13 +39,10 @@ Ponizsze Secrets powinny byc zapisane na repo environment `bootstrap`.
 
 ### Dostep
 
-- `bootstrap-all` i bootstrapowe subworkflowy wymagaja `admin` access do repo.
+- `bootstrap-all` wymaga `admin` access do repo.
 - Wszystkie joby bootstrapowe dzialaja na environment `bootstrap`, wiec tam trzymany jest caly kontrakt prerequisite dla tego repo.
 
-## Manualny fallback
+## Widocznosc w Actions
 
-Jesli nie uzywasz orchestratora, odpal workflowy recznie w kolejnosci:
-1. `bootstrap-org.yml`
-1. `bootstrap-iam-matrix.yml`
-1. `bootstrap-gh-core.yml`
-1. `bootstrap-gh-bind.yml`
+W repo jest tylko jeden workflow bootstrapowy: `bootstrap-all.yml`.
+Pomocnicze etapy sa zwyklymi jobami wewnatrz tego workflow, a nie osobnymi workflowami widocznymi w UI Actions.

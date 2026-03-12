@@ -24,13 +24,12 @@ Zalecane uruchomienie: przez `bootstrap-all`.
 
 `debug_suffix` dodaje suffix do nazwy OU/kont i aliasu email.
 
-## 3. Workflow inputs (bootstrap-org.yml)
+## 3. Workflow inputs (bootstrap-all.yml)
 
 - `app_slug`
 - `root_email_base`
 - `bootstrap_mode`
 - `debug_suffix` (opcjonalny)
-- `debug_confirmation` (`YES` wymagane dla `debug`)
 - `preset`
 - `aws_region` (opcjonalny override)
 

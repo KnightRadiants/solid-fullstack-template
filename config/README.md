@@ -9,9 +9,9 @@ Kazdy preset definiuje:
 - `enable_preview_pr` - flaga pod dalsze workflow CI/CD
 
 Konsumenci presetow:
-- `bootstrap-org.yml`
-- `bootstrap-gh-core.yml`
-- `bootstrap-all.yml` (przekazuje preset dalej)
+- `bootstrap-all.yml` (job `bootstrap-org`)
+- `bootstrap-all.yml` (job `bootstrap-gh-core`)
+- `scripts/validate-presets.py`
 
 Globalne reguly walidacji:
 - `prod` jest zawsze wymagany
