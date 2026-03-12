@@ -39,11 +39,11 @@ jobs:
                     exit 1
                   fi
 
-            - name: Require repository admin access
-              uses: ./.github/actions/require-admin-access
-
             - name: Checkout
               uses: actions/checkout@v4
+
+            - name: Require repository admin access
+              uses: ./.github/actions/require-admin-access
 
             - name: Validate GitHub App secrets
               shell: bash
