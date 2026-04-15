@@ -41,8 +41,10 @@ Alternatywnie zamiast `AWS_ACCOUNT_ID` + `BOOTSTRAP_ROLE_NAME` mozesz ustawic `A
 - `GH_APP_ID`
 - `GH_APP_PRIVATE_KEY`
 
-## Dostep
+## Dostep i guardy
 
 - Wszystkie joby dzialaja na environment `bootstrap`.
 - Workflow wymaga `admin` access do repo przez lokalna akcje `require-admin-access`.
+- Workflow ma guard, ktory blokuje uruchomienie na repo zrodlowym template o nazwie `solid-fullstack-template`.
+- Workflow nie ma jeszcze twardego warunku `github.ref == refs/heads/main`; to pozostaje otwartym elementem hardeningu.
 - Environment `bootstrap` jest miejscem, gdzie trzymamy kontrakt prerequisite dla konkretnego repo.

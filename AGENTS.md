@@ -7,3 +7,7 @@
 - Do not add workflow inputs/outputs "for future use".
 - When in doubt, hardcode stable conventions and add configurability later only when a real need appears.
 - Keep bootstrap workflows and modules opinionated and minimal; avoid optional switches that increase error surface.
+
+## Commit Messages
+
+- When creating commits, follow the commit message convention defined in `COMMIT.md`.

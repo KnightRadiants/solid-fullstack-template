@@ -10,7 +10,8 @@ Ten katalog przygotowuje rzeczy GitHub wspolne dla ownera.
 1. Zapisuje `app_id` i `private_key_pem` w AWS SSM jako centralny backup/fallback.
 1. Dla organizacji zapewnia team `administrators`.
 
-Repo secrets `GH_APP_ID` i `GH_APP_PRIVATE_KEY` nie sa tutaj ustawiane globalnie. Dla konkretnego repo robi to:
+Environment secrets `GH_APP_ID` i `GH_APP_PRIVATE_KEY` na `bootstrap` nie sa tutaj ustawiane globalnie.
+Dla konkretnego repo (przez `--bootstrap-repo`) robi to:
 - [../../prerequisite-repo/github/03-write-bootstrap-app-secrets.py](../../prerequisite-repo/github/03-write-bootstrap-app-secrets.py)
 
 ## Szybki start

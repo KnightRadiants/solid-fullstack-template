@@ -11,16 +11,24 @@ Dokument dotyczy repo tworzonych z template. Testy wykonujemy na repo testowych 
 
 ## 2. Stan obecny (baseline)
 
+Status zweryfikowany na podstawie aktualnego repo: `2026-04-15`.
+
 Mamy:
 - `bootstrap-repo` orchestration,
-- `bootstrap-repo` with inline `create-app-accounts`, `create-deploy-roles`, `configure-github-repo`, `bind-deploy-roles` jobs,
+- `bootstrap-repo` z jobami `create-app-accounts`, `resolve-targets`, `create-deploy-roles`, `configure-github-repo`, `bind-deploy-roles`,
+- environment gate: wszystkie joby workflow dzialaja na `environment: bootstrap`,
+- admin gate: wszystkie joby wymagaja `require-admin-access`,
+- least-privilege `permissions:` per job (`id-token`/`contents`/`deployments` tylko tam, gdzie potrzebne),
 - GitHub App token flow dla operacji governance,
-- role OIDC w AWS (`gha-bootstrap-org`, `gha-environment-deploy`).
+- sekrety `GH_APP_ID` i `GH_APP_PRIVATE_KEY` trzymane na environment `bootstrap`,
+- bootstrapowe zmienne AWS (`AWS_REGION`, `AWS_ACCOUNT_ID`, `BOOTSTRAP_ROLE_NAME`, `TF_STATE_BUCKET`) trzymane na environment `bootstrap`,
+- role OIDC w AWS (`gha-bootstrap-org`, `gha-environment-deploy`) z trustem opartym o `repo + environment`.
 
-Brakuje:
+Brakuje / otwarte:
 - twardych branch/ruleset protections,
-- twardego ograniczenia bootstrap workflow do `main` + admin gate,
-- centralnego modelu "kto ma dostep do czego".
+- twardego ograniczenia `workflow_dispatch` w `bootstrap-repo.yml` do `refs/heads/main`,
+- `CODEOWNERS` dla krytycznych sciezek (`.github/workflows/**`, `terraform/**`, `config/presets.json`),
+- centralnego modelu "kto ma dostep do czego" zakodowanego w rulesetach.
 
 ## 3. Target security model (docelowy)
 
@@ -32,7 +40,7 @@ Brakuje:
 
 ### 3.2 Gdzie trzymamy sekrety i zmienne
 
-- Wrazliwe dane do governance (GitHub App private key) tylko jako `Environment secrets` (`bootstrap`).
+- Wrazliwe dane do governance (`GH_APP_PRIVATE_KEY`, `GH_APP_ID`) tylko jako `Environment secrets` (`bootstrap`).
 - Dane techniczne bootstrapowe do AWS:
   - preferencyjnie jako `Environment variables` (`bootstrap`) lub org-level restricted to selected repos.
 - Runtime role mapping (`AWS_ROLE_TO_ASSUME`) trzymamy per environment (`dev`, `prod`, `preview`, itd.).
@@ -61,6 +69,16 @@ Brakuje:
 
 ## 4. Plan wdrozenia (kolejnosc)
 
+### Status etapow (na 2026-04-15)
+
+- Etap 0: zrealizowany.
+- Etap 1: zrealizowany czesciowo (otwarty guard `refs/heads/main`).
+- Etap 2: zrealizowany.
+- Etap 3: zrealizowany funkcjonalnie (`repo + environment` w trust policy); dalsze zaciesnianie policy mozliwe iteracyjnie.
+- Etap 4: nie zrealizowany.
+- Etap 5: nie zrealizowany.
+- Etap 6: nie zrealizowany.
+
 ## Etap 0: Prerequisite GH automation (`gh/team` + orchestrator)
 
 ### Zmiany
@@ -69,16 +87,15 @@ Brakuje:
    - `prerequisite-org/gh/app/` (manifest flow GitHub App),
    - `prerequisite-org/gh/team/` (ensure team `administrators`, membership, opcjonalnie repo permissions),
    - `prerequisite-org/gh/bootstrap-github-governance.py` (lokalny orchestrator).
-1. Dodac krok automatycznego ustawiania secrets/variables po `gh/app`:
-   - `GH_APP_ID`
-   - `GH_APP_PRIVATE_KEY`
-   - pozostale bootstrapowe zmienne potrzebne workflow.
+1. Zapewnic sciezke automatycznego ustawiania kontraktu bootstrap repo:
+   - `GH_APP_ID` i `GH_APP_PRIVATE_KEY` jako environment secrets (`bootstrap`) przez `--bootstrap-repo` / `03-write-bootstrap-app-secrets.py`,
+   - bootstrapowe variables AWS przez `02-write-bootstrap-variables.py`.
 1. Zapewnic idempotencje:
    - "create if missing, update if exists".
 
 ### Test akceptacyjny
 
-- Uruchomienie orchestratora na czystej organizacji tworzy team, app i wpisuje wymagane secrets/variables.
+- Uruchomienie orchestratora na czystej organizacji tworzy team i app, a dla wskazanego bootstrap repo wpisuje wymagane environment secrets.
 - Ponowne uruchomienie nie psuje stanu i nie duplikuje zasobow.
 
 ## Etap 1: Zamrozenie powierzchni ataku bootstrap
@@ -104,11 +121,12 @@ Brakuje:
 ### Zmiany
 
 1. Przeniesc `GH_APP_PRIVATE_KEY` do `bootstrap` environment secret.
-1. Przeniesc `GH_APP_ID` do `bootstrap` environment variable/secret.
+1. Przeniesc `GH_APP_ID` do `bootstrap` environment secret.
 1. Przeniesc bootstrapowe AWS vars do `bootstrap` environment variables:
-   - `AWS_ROLE_TO_ASSUME`
+   - `AWS_ROLE_TO_ASSUME` (opcjonalnie, zamiast pary ponizej)
+   - `AWS_ACCOUNT_ID`
+   - `BOOTSTRAP_ROLE_NAME`
    - `TF_STATE_BUCKET`
-   - `TF_LOCK_TABLE`
    - `AWS_REGION` (opcjonalnie globalna)
 1. Usunac duplikaty tych danych z repo/global context, jesli niepotrzebne.
 
