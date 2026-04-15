@@ -16,12 +16,13 @@ variable "github_org" {
 }
 
 variable "github_repo" {
-  description = "GitHub repository name allowed to assume the bootstrap role from environment bootstrap."
+  description = "Initial GitHub repository name allowed to assume the bootstrap role from environment bootstrap. Org bootstrap uses a placeholder; repo bootstrap appends real repos later."
   type        = string
+  default     = "__bootstrap-placeholder__"
 
   validation {
     condition     = trim(var.github_repo, " ") != "" && can(regex("^[A-Za-z0-9_.-]+$", var.github_repo))
-    error_message = "github_repo is required and may contain only letters, numbers, underscore, dot, and hyphen."
+    error_message = "github_repo may contain only letters, numbers, underscore, dot, and hyphen."
   }
 }
 

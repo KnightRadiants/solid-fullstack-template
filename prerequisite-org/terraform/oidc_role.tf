@@ -1,6 +1,6 @@
 locals {
   github_oidc_url     = "https://token.actions.githubusercontent.com"
-  tf_state_key_prefix = "bootstrap-org"
+  tf_state_key_prefix = "bootstrap-repo"
 
   default_github_subject              = "repo:${var.github_org}/${var.github_repo}:environment:bootstrap"
   effective_github_subject_patterns   = length(var.github_subject_patterns) > 0 ? var.github_subject_patterns : [local.default_github_subject]
@@ -52,6 +52,10 @@ resource "aws_iam_role" "github_actions_bootstrap" {
   name               = var.github_oidc_role_name
   assume_role_policy = data.aws_iam_policy_document.github_oidc_assume_role.json
 
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
+
   tags = merge(
     {
       ManagedBy = "Terraform"
@@ -70,11 +74,21 @@ data "aws_iam_policy_document" "github_actions_bootstrap_permissions" {
       "organizations:CreateOrganizationalUnit",
       "organizations:DeleteOrganizationalUnit",
       "organizations:Describe*",
+      "organizations:EnableAWSServiceAccess",
       "organizations:List*",
       "organizations:MoveAccount",
       "organizations:TagResource",
       "organizations:UntagResource",
       "organizations:UpdateOrganizationalUnit",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "AccountPoolRename"
+    actions = [
+      "account:GetAccountInformation",
+      "account:PutAccountName",
     ]
     resources = ["*"]
   }

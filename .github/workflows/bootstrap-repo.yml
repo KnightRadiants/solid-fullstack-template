@@ -1,4 +1,4 @@
-name: bootstrap-all
+name: bootstrap-repo
 
 on:
     workflow_dispatch:
@@ -42,7 +42,7 @@ on:
                 default: ""
 
 jobs:
-    bootstrap-org:
+    create-app-accounts:
         runs-on: ubuntu-latest
         environment: bootstrap
         permissions:
@@ -107,7 +107,7 @@ jobs:
                   fi
 
                   TF_LOCK_TABLE="terraform-locks"
-                  STATE_PREFIX="bootstrap-org"
+                  STATE_PREFIX="bootstrap-repo"
                   STATE_KEY="${STATE_PREFIX}/${{ inputs.app_slug }}.tfstate"
 
                   echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
@@ -177,7 +177,7 @@ jobs:
 
                   ACCOUNTS_HCL="$(jq -c --arg preset "$PRESET" '.presets[$preset].aws_accounts' "$PRESETS_FILE")"
 
-                  TFVARS_PATH="$RUNNER_TEMP/bootstrap-org.tfvars"
+                  TFVARS_PATH="$RUNNER_TEMP/aws-accounts.tfvars"
                   cat > "$TFVARS_PATH" <<EOF
                   app_slug             = "${APP_SLUG}"
                   root_email_base      = "${ROOT_EMAIL_BASE}"
@@ -194,7 +194,7 @@ jobs:
                   echo "tfvars_path=${TFVARS_PATH}" >> "$GITHUB_OUTPUT"
                   echo "accounts_hcl=${ACCOUNTS_HCL}" >> "$GITHUB_OUTPUT"
 
-            - name: Print destroy helper command
+            - name: Print archive and debug destroy helper commands
               shell: bash
               env:
                   APP_SLUG: ${{ inputs.app_slug }}
@@ -209,8 +209,13 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  echo "Destroy helper command (manual):"
-                  echo "terraform -chdir=terraform/bootstrap-org init \\"
+                  echo "Archive helper command (manual, does not close accounts):"
+                  echo "python prerequisite-repo/app/archive-application.py \\"
+                  echo "  --app-slug \"${APP_SLUG}\" \\"
+                  echo "  --aws-region \"${AWS_REGION}\""
+                  echo
+                  echo "Terraform destroy helper command (debug/testing only):"
+                  echo "terraform -chdir=prerequisite-repo/terraform/aws-accounts init \\"
                   echo "  -backend-config=\"bucket=${TF_STATE_BUCKET}\" \\"
                   echo "  -backend-config=\"key=${STATE_KEY}\" \\"
                   echo "  -backend-config=\"region=${AWS_REGION}\" \\"
@@ -218,7 +223,7 @@ jobs:
                   echo "  -backend-config=\"encrypt=true\" \\"
                   echo "  -reconfigure"
                   echo
-                  echo "terraform -chdir=terraform/bootstrap-org destroy \\"
+                  echo "terraform -chdir=prerequisite-repo/terraform/aws-accounts destroy \\"
                   echo "  -var \"app_slug=${APP_SLUG}\" \\"
                   echo "  -var \"root_email_base=${ROOT_EMAIL_BASE}\" \\"
                   echo "  -var \"aws_region=${AWS_REGION}\" \\"
@@ -237,7 +242,7 @@ jobs:
                   STATE_KEY: ${{ steps.cfg.outputs.state_key }}
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-org init \
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts init \
                     -backend-config="bucket=${TF_STATE_BUCKET}" \
                     -backend-config="key=${STATE_KEY}" \
                     -backend-config="region=${AWS_REGION}" \
@@ -245,30 +250,91 @@ jobs:
                     -backend-config="encrypt=true" \
                     -reconfigure
 
+            - name: Ensure application OU before account pool allocation
+              if: ${{ inputs.bootstrap_mode == 'safe' }}
+              shell: bash
+              env:
+                  TFVARS_PATH: ${{ steps.tfvars.outputs.tfvars_path }}
+              run: |
+                  set -euo pipefail
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts apply \
+                    -auto-approve \
+                    -target=aws_organizations_organizational_unit.app \
+                    -var-file="${TFVARS_PATH}"
+
+            - name: Reuse accounts from account pool
+              if: ${{ inputs.bootstrap_mode == 'safe' }}
+              id: account_pool
+              shell: bash
+              env:
+                  ACCOUNTS_JSON: ${{ steps.tfvars.outputs.accounts_hcl }}
+                  APP_SLUG: ${{ inputs.app_slug }}
+                  AWS_REGION: ${{ steps.cfg.outputs.aws_region }}
+              run: |
+                  set -euo pipefail
+                  POOL_JSON="$(python prerequisite-repo/app/account-pool.py \
+                    --aws-region "${AWS_REGION}" \
+                    allocate \
+                    --app-slug "${APP_SLUG}" \
+                    --environment-accounts-json "${ACCOUNTS_JSON}" \
+                    --bootstrap-mode safe)"
+
+                  echo "${POOL_JSON}" | jq .
+                  echo "pool_json=${POOL_JSON}" >> "$GITHUB_OUTPUT"
+
+            - name: Import reused account pool accounts
+              if: ${{ inputs.bootstrap_mode == 'safe' }}
+              shell: bash
+              env:
+                  POOL_JSON: ${{ steps.account_pool.outputs.pool_json }}
+                  TFVARS_PATH: ${{ steps.tfvars.outputs.tfvars_path }}
+              run: |
+                  set -euo pipefail
+
+                  if [[ -z "${POOL_JSON}" ]]; then
+                    echo "No account pool result to import."
+                    exit 0
+                  fi
+
+                  echo "${POOL_JSON}" | jq -r '.imports[]? | @base64' | while read -r item; do
+                    address="$(echo "${item}" | base64 --decode | jq -r '.resource_address')"
+                    account_id="$(echo "${item}" | base64 --decode | jq -r '.account_id')"
+
+                    if terraform -chdir=prerequisite-repo/terraform/aws-accounts state list | grep -Fxq "${address}"; then
+                      echo "skip import ${address}; already in state"
+                      continue
+                    fi
+
+                    terraform -chdir=prerequisite-repo/terraform/aws-accounts import \
+                      -var-file="${TFVARS_PATH}" \
+                      "${address}" \
+                      "${account_id}"
+                  done
+
             - name: Terraform plan
               shell: bash
               env:
                   TFVARS_PATH: ${{ steps.tfvars.outputs.tfvars_path }}
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-org plan \
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts plan \
                     -var-file="${TFVARS_PATH}" \
-                    -out="$RUNNER_TEMP/bootstrap-org.tfplan"
+                    -out="$RUNNER_TEMP/aws-accounts.tfplan"
 
             - name: Terraform apply
               shell: bash
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-org apply -auto-approve "$RUNNER_TEMP/bootstrap-org.tfplan"
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts apply -auto-approve "$RUNNER_TEMP/aws-accounts.tfplan"
 
             - name: Terraform outputs
               shell: bash
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-org output
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts output
 
     resolve-targets:
-        needs: bootstrap-org
+        needs: create-app-accounts
         runs-on: ubuntu-latest
         environment: bootstrap
         permissions:
@@ -329,7 +395,7 @@ jobs:
                   fi
 
                   TF_LOCK_TABLE="terraform-locks"
-                  STATE_PREFIX="bootstrap-org"
+                  STATE_PREFIX="bootstrap-repo"
                   STATE_KEY="${STATE_PREFIX}/${{ inputs.app_slug }}.tfstate"
 
                   echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
@@ -366,7 +432,7 @@ jobs:
             - name: Setup Terraform
               uses: hashicorp/setup-terraform@v3
 
-            - name: Read account targets from bootstrap-org state
+            - name: Read account targets from aws-accounts state
               id: targets
               shell: bash
               env:
@@ -378,7 +444,7 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  terraform -chdir=terraform/bootstrap-org init \
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts init \
                     -backend-config="bucket=${TF_STATE_BUCKET}" \
                     -backend-config="key=${STATE_KEY}" \
                     -backend-config="region=${AWS_REGION}" \
@@ -386,10 +452,10 @@ jobs:
                     -backend-config="encrypt=true" \
                     -reconfigure
 
-                  OUTPUTS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json)"
+                  OUTPUTS_JSON="$(terraform -chdir=prerequisite-repo/terraform/aws-accounts output -json)"
                   ACCOUNT_IDS_JSON="$(jq -c '.account_ids.value // {}' <<< "${OUTPUTS_JSON}")"
                   if [[ "${ACCOUNT_IDS_JSON}" == "{}" ]]; then
-                    echo "::error::No output account_ids found in bootstrap-org state (${STATE_KEY}). Run bootstrap-org apply once for this app_slug to refresh outputs."
+                    echo "::error::No output account_ids found in aws-accounts state (${STATE_KEY}). Run aws-accounts apply once for this app_slug to refresh outputs."
                     exit 1
                   fi
 
@@ -423,7 +489,7 @@ jobs:
                   set -euo pipefail
                   echo "${MATRIX_JSON}" | jq .
 
-    bootstrap-iam:
+    create-deploy-roles:
         needs: resolve-targets
         runs-on: ubuntu-latest
         environment: bootstrap
@@ -486,8 +552,8 @@ jobs:
                   fi
 
                   TF_LOCK_TABLE="terraform-locks"
-                  STATE_PREFIX="bootstrap-org"
-                  STATE_KEY="${STATE_PREFIX}/bootstrap-iam/${{ inputs.app_slug }}/${{ matrix.environment_name }}.tfstate"
+                  STATE_PREFIX="bootstrap-repo"
+                  STATE_KEY="${STATE_PREFIX}/aws-iam/${{ inputs.app_slug }}/${{ matrix.environment_name }}.tfstate"
 
                   echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
                   echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
@@ -543,7 +609,7 @@ jobs:
                     exit 1
                   fi
 
-                  TFVARS_PATH="$RUNNER_TEMP/bootstrap-iam.tfvars"
+                  TFVARS_PATH="$RUNNER_TEMP/aws-iam.tfvars"
                   cat > "$TFVARS_PATH" <<EOF
                   app_slug          = "${APP_SLUG}"
                   environment_name  = "${ENVIRONMENT_NAME}"
@@ -564,7 +630,7 @@ jobs:
                   STATE_KEY: ${{ steps.cfg.outputs.state_key }}
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam init \
+                  terraform -chdir=prerequisite-repo/terraform/aws-iam init \
                     -backend-config="bucket=${TF_STATE_BUCKET}" \
                     -backend-config="key=${STATE_KEY}" \
                     -backend-config="region=${AWS_REGION}" \
@@ -578,18 +644,18 @@ jobs:
                   TFVARS_PATH: ${{ steps.tfvars.outputs.tfvars_path }}
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam plan \
+                  terraform -chdir=prerequisite-repo/terraform/aws-iam plan \
                     -var-file="${TFVARS_PATH}" \
-                    -out="$RUNNER_TEMP/bootstrap-iam.tfplan"
+                    -out="$RUNNER_TEMP/aws-iam.tfplan"
 
             - name: Terraform apply
               shell: bash
               run: |
                   set -euo pipefail
-                  terraform -chdir=terraform/bootstrap-iam apply -auto-approve "$RUNNER_TEMP/bootstrap-iam.tfplan"
+                  terraform -chdir=prerequisite-repo/terraform/aws-iam apply -auto-approve "$RUNNER_TEMP/aws-iam.tfplan"
 
-    bootstrap-gh-core:
-        needs: bootstrap-iam
+    configure-github-repo:
+        needs: create-deploy-roles
         runs-on: ubuntu-latest
         environment: bootstrap
         permissions:
@@ -709,7 +775,7 @@ jobs:
                       }
 
                       core.summary
-                        .addHeading("bootstrap-gh-core: branches")
+                        .addHeading("configure-github-repo: branches")
                         .addList(summary)
                         .write();
 
@@ -730,7 +796,7 @@ jobs:
                       });
 
                       core.summary
-                        .addHeading("bootstrap-gh-core: default branch")
+                        .addHeading("configure-github-repo: default branch")
                         .addRaw(`default_branch set to: ${defaultBranch}`)
                         .write();
 
@@ -755,12 +821,12 @@ jobs:
                       }
 
                       core.summary
-                        .addHeading("bootstrap-gh-core: environments")
+                        .addHeading("configure-github-repo: environments")
                         .addList(summary)
                         .write();
 
-    bootstrap-gh-bind:
-        needs: bootstrap-gh-core
+    bind-deploy-roles:
+        needs: configure-github-repo
         runs-on: ubuntu-latest
         environment: bootstrap
         permissions:
@@ -846,7 +912,7 @@ jobs:
                   fi
 
                   TF_LOCK_TABLE="terraform-locks"
-                  STATE_PREFIX="bootstrap-org"
+                  STATE_PREFIX="bootstrap-repo"
                   STATE_KEY="${STATE_PREFIX}/${{ inputs.app_slug }}.tfstate"
 
                   echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
@@ -883,7 +949,7 @@ jobs:
             - name: Setup Terraform
               uses: hashicorp/setup-terraform@v3
 
-            - name: Read account targets from bootstrap-org state
+            - name: Read account targets from aws-accounts state
               id: targets
               shell: bash
               env:
@@ -894,7 +960,7 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  terraform -chdir=terraform/bootstrap-org init \
+                  terraform -chdir=prerequisite-repo/terraform/aws-accounts init \
                     -backend-config="bucket=${TF_STATE_BUCKET}" \
                     -backend-config="key=${STATE_KEY}" \
                     -backend-config="region=${AWS_REGION}" \
@@ -902,11 +968,11 @@ jobs:
                     -backend-config="encrypt=true" \
                     -reconfigure
 
-                  OUTPUTS_JSON="$(terraform -chdir=terraform/bootstrap-org output -json)"
+                  OUTPUTS_JSON="$(terraform -chdir=prerequisite-repo/terraform/aws-accounts output -json)"
                   ACCOUNT_IDS_JSON="$(jq -c '.account_ids.value // {}' <<< "${OUTPUTS_JSON}")"
 
                   if [[ "${ACCOUNT_IDS_JSON}" == "{}" ]]; then
-                    echo "::error::No output account_ids found in bootstrap-org state (${STATE_KEY}). Run bootstrap-org apply once for this app_slug to refresh outputs."
+                    echo "::error::No output account_ids found in aws-accounts state (${STATE_KEY}). Run aws-accounts apply once for this app_slug to refresh outputs."
                     exit 1
                   fi
 
@@ -973,6 +1039,6 @@ jobs:
                       }
 
                       core.summary
-                        .addHeading("bootstrap-gh-bind")
+                        .addHeading("bind-deploy-roles")
                         .addList(summary)
                         .write();

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Local orchestrator for full prerequisite bootstrap.
+Local orchestrator for organization prerequisite.
 
 Stage order:
-1) Run AWS prerequisite bootstrap.
-2) Run GitHub prerequisite bootstrap.
+1) Run AWS organization prerequisite bootstrap.
+2) Run GitHub owner prerequisite bootstrap.
 """
 
 from __future__ import annotations
@@ -134,18 +134,10 @@ def resolve_aws_profile(profile_arg: str) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Bootstrap AWS + GitHub prerequisites in one run.")
+    parser = argparse.ArgumentParser(description="Prepare shared AWS + GitHub organization prerequisites.")
     parser.add_argument("--org", default="", help="GitHub owner (organization or user)")
-    parser.add_argument("--repo", default="", help="Repository name receiving bootstrap variables and secrets")
     parser.add_argument("--aws-region", default="", help="AWS region for prerequisite resources")
     parser.add_argument("--aws-profile", default="", help="AWS profile to use")
-
-    parser.add_argument(
-        "--scope",
-        choices=["org", "repo"],
-        default="org",
-        help="Deprecated. GH_APP_* bootstrap secrets are always written to repository environment 'bootstrap'.",
-    )
     parser.add_argument(
         "--app-name",
         default="",
@@ -182,11 +174,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--team-maintainers", default="", help="Comma-separated maintainer logins")
     parser.add_argument("--team-members", default="", help="Comma-separated member logins")
-    parser.add_argument(
-        "--skip-team-repo-admin-grant",
-        action="store_true",
-        help="Skip granting admin permission on bootstrap repo to administrators team",
-    )
     return parser.parse_args()
 
 
@@ -318,33 +305,28 @@ def discover_github_context_from_git(start_dir: Path) -> tuple[str, str] | None:
 def main() -> int:
     args = parse_args()
     base_dir = Path(__file__).resolve().parent
-    print_step("Starting full prerequisite bootstrap.")
+    print_step("Starting organization prerequisite.")
     git_context = discover_github_context_from_git(base_dir)
     if git_context:
         git_org, git_repo = git_context
         if not args.org.strip():
             args.org = git_org
-        if not args.repo.strip():
-            args.repo = git_repo
         print_step(f"Detected GitHub remote context from .git: org='{git_org}', repo='{git_repo}'.")
 
     args.org = prompt_if_missing(args.org, "GitHub owner")
-    args.repo = prompt_if_missing(args.repo, "Bootstrap repository")
     args.aws_region = prompt_for_aws_region(args.aws_region)
     args.aws_profile = resolve_aws_profile(args.aws_profile)
     os.environ["AWS_PROFILE"] = args.aws_profile
-    print_step(f"Resolved bootstrap context: org='{args.org}', repo='{args.repo}', region='{args.aws_region}'.")
+    print_step(f"Resolved organization prerequisite context: org='{args.org}', region='{args.aws_region}'.")
 
-    aws_script = base_dir / "aws" / "bootstrap-aws.py"
-    gh_script = base_dir / "gh" / "bootstrap-gh.py"
+    aws_script = base_dir / "terraform" / "bootstrap-aws-foundation.py"
+    gh_script = base_dir / "gh" / "bootstrap-github-governance.py"
 
     aws_command = [
         sys.executable,
         str(aws_script),
         "--org",
         args.org,
-        "--repo",
-        args.repo,
         "--aws-region",
         args.aws_region,
     ]
@@ -356,10 +338,6 @@ def main() -> int:
         str(gh_script),
         "--org",
         args.org,
-        "--bootstrap-repo",
-        args.repo,
-        "--scope",
-        args.scope,
         "--aws-region",
         args.aws_region,
         "--app-description",
@@ -386,8 +364,6 @@ def main() -> int:
         gh_command.extend(["--team-maintainers", args.team_maintainers.strip()])
     if args.team_members.strip():
         gh_command.extend(["--team-members", args.team_members.strip()])
-    if args.skip_team_repo_admin_grant:
-        gh_command.append("--skip-team-repo-admin-grant")
 
     print("== AWS prerequisite ==")
     run_command(aws_command, cwd=base_dir, description="Running AWS prerequisite bootstrap...")
@@ -395,7 +371,7 @@ def main() -> int:
     print("\n== GitHub prerequisite ==")
     run_command(gh_command, cwd=base_dir, description="Running GitHub prerequisite bootstrap...")
 
-    print("\nFull prerequisite bootstrap finished.")
+    print("\nOrganization prerequisite finished.")
     return 0
 
 

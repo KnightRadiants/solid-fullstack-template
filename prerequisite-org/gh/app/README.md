@@ -5,7 +5,7 @@ Ten katalog zawiera manifest-flow do utworzenia GitHub App.
 ## Uruchomienie
 
 ```ps1
-Set-Location terraform/prerequisite/gh
+Set-Location prerequisite-org/gh
 python app/bootstrap-gh-app-manifest.py `
   --org KnightRadiants `
   --app-name "gha-template-bootstrap" `

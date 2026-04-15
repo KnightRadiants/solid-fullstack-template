@@ -5,7 +5,7 @@ Local orchestrator for GitHub prerequisite bootstrap.
 Stage order:
 1) Ensure GitHub App credentials (create once, then reuse from app/out).
 2) Ensure administrators team baseline.
-3) Upsert required GitHub App secrets via gh CLI.
+3) Optionally attach one repository and upsert required GitHub App secrets.
 """
 
 from __future__ import annotations
@@ -331,15 +331,9 @@ def select_with_arrows(prompt_text: str, options: list[str]) -> int:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Bootstrap GitHub prerequisite (app + team + app secrets).")
+    parser = argparse.ArgumentParser(description="Bootstrap GitHub owner prerequisite (app + team, optional repo secrets).")
     parser.add_argument("--org", required=True, help="GitHub owner (organization or user)")
-    parser.add_argument("--bootstrap-repo", required=True, help="Repository name that receives app secrets")
-    parser.add_argument(
-        "--scope",
-        choices=["org", "repo"],
-        default="org",
-        help="Deprecated. GH_APP_* bootstrap secrets are always written to repository environment 'bootstrap'.",
-    )
+    parser.add_argument("--bootstrap-repo", default="", help="Repository name that receives app secrets")
     parser.add_argument(
         "--app-name",
         default="",
@@ -1205,8 +1199,7 @@ def ensure_team(
     run_command_checked(command, description="Ensuring administrators team baseline...")
 
 
-def set_secret(name: str, value: str, *, scope: str, org: str, repo: str, owner_type: str) -> None:
-    del scope
+def set_secret(name: str, value: str, *, org: str, repo: str, owner_type: str) -> None:
     del owner_type
 
     command = [
@@ -1232,7 +1225,6 @@ def set_secret(name: str, value: str, *, scope: str, org: str, repo: str, owner_
 
 def upsert_bootstrap_secrets(
     *,
-    scope: str,
     org: str,
     repo: str,
     owner_type: str,
@@ -1241,10 +1233,10 @@ def upsert_bootstrap_secrets(
 ) -> list[str]:
     changes: list[str] = []
 
-    set_secret("GH_APP_ID", app_id, scope=scope, org=org, repo=repo, owner_type=owner_type)
+    set_secret("GH_APP_ID", app_id, org=org, repo=repo, owner_type=owner_type)
     changes.append("secret GH_APP_ID")
 
-    set_secret("GH_APP_PRIVATE_KEY", private_key_pem, scope=scope, org=org, repo=repo, owner_type=owner_type)
+    set_secret("GH_APP_PRIVATE_KEY", private_key_pem, org=org, repo=repo, owner_type=owner_type)
     changes.append("secret GH_APP_PRIVATE_KEY")
 
     return changes
@@ -1257,22 +1249,18 @@ def verify_cli_prerequisites(*, owner_type: str) -> None:
         return
 
     get_gh_auth_status_text()
-    print_step(
-        "GitHub owner is a personal account. Bootstrap environment secrets will be used and team bootstrap will be skipped."
-    )
+    print_step("GitHub owner is a personal account. Team bootstrap will be skipped.")
 
 
 def main() -> int:
     args = parse_args()
-    print_step(f"Starting GitHub prerequisite bootstrap for owner='{args.org}', repo='{args.bootstrap_repo}'.")
+    bootstrap_repo = args.bootstrap_repo.strip()
+    print_step(f"Starting GitHub prerequisite bootstrap for owner='{args.org}', repo='{bootstrap_repo or 'n/a'}'.")
     owner_type = resolve_github_owner_type(args.org)
     print_step(f"Detected GitHub owner type '{owner_type}' for '{args.org}'.")
     verify_cli_prerequisites(owner_type=owner_type)
-    ensure_bootstrap_environment(owner=args.org, repo=args.bootstrap_repo)
-    if args.scope != "org":
-        print_step(
-            f"Ignoring --scope={args.scope}. Bootstrap GitHub App secrets are always stored in environment '{BOOTSTRAP_ENVIRONMENT_NAME}'."
-        )
+    if bootstrap_repo:
+        ensure_bootstrap_environment(owner=args.org, repo=bootstrap_repo)
     aws_region = resolve_aws_region(args.aws_region)
     aws_profile = args.aws_profile.strip() or os.environ.get("AWS_PROFILE", "").strip()
 
@@ -1349,15 +1337,16 @@ def main() -> int:
         aws_region=aws_region,
         aws_profile=aws_profile,
     )
-    ensure_app_available_for_repo(
-        owner=args.org,
-        repo=args.bootstrap_repo,
-        payload=payload,
-        open_browser=args.open_browser,
-        owner_type=owner_type,
-    )
+    if bootstrap_repo:
+        ensure_app_available_for_repo(
+            owner=args.org,
+            repo=bootstrap_repo,
+            payload=payload,
+            open_browser=args.open_browser,
+            owner_type=owner_type,
+        )
 
-    grant_admin_repo = None if args.skip_team_repo_admin_grant else args.bootstrap_repo
+    grant_admin_repo = None if args.skip_team_repo_admin_grant else bootstrap_repo or None
     ensure_team(
         team_script_path=team_script,
         org=args.org,
@@ -1369,21 +1358,23 @@ def main() -> int:
         admin_repo=grant_admin_repo,
     )
 
-    changes = upsert_bootstrap_secrets(
-        scope=args.scope,
-        org=args.org,
-        repo=args.bootstrap_repo,
-        owner_type=owner_type,
-        app_id=app_id,
-        private_key_pem=private_key_pem,
-    )
+    changes = []
+    if bootstrap_repo:
+        changes = upsert_bootstrap_secrets(
+            org=args.org,
+            repo=bootstrap_repo,
+            owner_type=owner_type,
+            app_id=app_id,
+            private_key_pem=private_key_pem,
+        )
 
     print("\nbootstrap-gh-prerequisite summary:")
     print(f"- owner: {args.org}")
     print(f"- owner_type: {owner_type}")
-    print(f"- bootstrap_repo: {args.bootstrap_repo}")
-    print(f"- bootstrap_environment: {BOOTSTRAP_ENVIRONMENT_NAME}")
-    print(f"- scope: environment/{BOOTSTRAP_ENVIRONMENT_NAME}")
+    print(f"- bootstrap_repo: {bootstrap_repo or 'not configured'}")
+    if bootstrap_repo:
+        print(f"- bootstrap_environment: {BOOTSTRAP_ENVIRONMENT_NAME}")
+        print(f"- scope: environment/{BOOTSTRAP_ENVIRONMENT_NAME}")
     print(f"- app_id: {app_id}")
     print(f"- app_credentials: {credentials_file}")
     print(f"- app_private_key: {private_key_file}")

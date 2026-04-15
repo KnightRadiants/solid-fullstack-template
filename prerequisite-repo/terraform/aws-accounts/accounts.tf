@@ -10,6 +10,7 @@ resource "aws_organizations_account" "app_safe" {
 
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [email, role_name]
   }
 }
 
@@ -22,4 +23,8 @@ resource "aws_organizations_account" "app_debug" {
   role_name         = var.account_role_name
   close_on_deletion = true
   tags              = each.value.tags
+
+  lifecycle {
+    ignore_changes = [email, role_name]
+  }
 }

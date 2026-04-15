@@ -12,8 +12,8 @@ Dokument dotyczy repo tworzonych z template. Testy wykonujemy na repo testowych 
 ## 2. Stan obecny (baseline)
 
 Mamy:
-- `bootstrap-all` orchestration,
-- `bootstrap-org`, `bootstrap-iam-matrix`, `bootstrap-gh-core`, `bootstrap-gh-bind`,
+- `bootstrap-repo` orchestration,
+- `bootstrap-repo` with inline `create-app-accounts`, `create-deploy-roles`, `configure-github-repo`, `bind-deploy-roles` jobs,
 - GitHub App token flow dla operacji governance,
 - role OIDC w AWS (`gha-bootstrap-org`, `gha-environment-deploy`).
 
@@ -26,7 +26,7 @@ Brakuje:
 
 ### 3.1 Kto moze robic bootstrap
 
-- Bootstrapy (`bootstrap-all` i workflow bootstrapowe) dzialaja tylko z `main`.
+- Bootstrapy (`bootstrap-repo` i workflow bootstrapowe) dzialaja tylko z `main`.
 - Workflow bootstrapowe wymagaja wejscia przez GitHub Environment `bootstrap`.
 - Environment `bootstrap` ma `Required reviewers` = team administratorow.
 
@@ -66,9 +66,9 @@ Brakuje:
 ### Zmiany
 
 1. Rozdzielic prerequisite GH na:
-   - `terraform/prerequisite/gh/app/` (manifest flow GitHub App),
-   - `terraform/prerequisite/gh/team/` (ensure team `administrators`, membership, opcjonalnie repo permissions),
-   - `terraform/prerequisite/gh/bootstrap-gh.py` (lokalny orchestrator).
+   - `prerequisite-org/gh/app/` (manifest flow GitHub App),
+   - `prerequisite-org/gh/team/` (ensure team `administrators`, membership, opcjonalnie repo permissions),
+   - `prerequisite-org/gh/bootstrap-github-governance.py` (lokalny orchestrator).
 1. Dodac krok automatycznego ustawiania secrets/variables po `gh/app`:
    - `GH_APP_ID`
    - `GH_APP_PRIVATE_KEY`
@@ -92,7 +92,7 @@ Brakuje:
 
 ### Pliki
 
-- `.github/workflows/bootstrap-all.yml`
+- `.github/workflows/bootstrap-repo.yml`
 
 ### Test akceptacyjny
 
@@ -175,7 +175,7 @@ Brakuje:
 ### Scenariusze
 
 1. Positive path:
-   - `bootstrap-all` na `main` z approvalem `bootstrap` env.
+   - `bootstrap-repo` na `main` z approvalem `bootstrap` env.
 1. Negative path A:
    - bootstrap uruchomiony z `dev` -> fail.
 1. Negative path B:

@@ -5,7 +5,7 @@ Local orchestrator for AWS prerequisite bootstrap.
 Stage order:
 1) Apply prerequisite Terraform with minimal inputs.
 2) Read the generated state bucket name from Terraform output.
-3) Upsert required GitHub variables via gh CLI using repository-scoped org variables.
+3) Print the shared values used later by repository prerequisites.
 """
 
 from __future__ import annotations
@@ -23,8 +23,11 @@ from pathlib import Path
 from urllib.parse import unquote
 
 DEFAULT_BOOTSTRAP_ROLE_NAME = "gha-bootstrap-org"
+DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME = f"{DEFAULT_BOOTSTRAP_ROLE_NAME}-bootstrap-org"
 DEFAULT_LOCK_TABLE_NAME = "terraform-locks"
 BOOTSTRAP_ENVIRONMENT_NAME = "bootstrap"
+BOOTSTRAP_PLACEHOLDER_REPO = "__bootstrap-placeholder__"
+BOOTSTRAP_REPO_STATE_PREFIX = "bootstrap-repo"
 GH_WRITE_MAX_ATTEMPTS = 4
 GH_AUTH_REFRESH_MAX_ATTEMPTS = 3
 GH_AUTH_REFRESH_RETRY_DELAY_SECONDS = 3
@@ -184,10 +187,9 @@ def is_missing_resource_error(result: subprocess.CompletedProcess[str], *, patte
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bootstrap AWS prerequisite Terraform and publish required GitHub variables."
+        description="Bootstrap AWS organization prerequisite Terraform."
     )
     parser.add_argument("--org", required=True, help="GitHub owner (organization or user)")
-    parser.add_argument("--repo", required=True, help="Repository name that receives bootstrap variables")
     parser.add_argument("--aws-region", required=True, help="AWS region for prerequisite resources")
     parser.add_argument("--aws-profile", default="", help="AWS profile to use")
     return parser.parse_args()
@@ -447,7 +449,7 @@ def resolve_aws_profile(profile_arg: str) -> str:
     return prompt_for_aws_profile(profiles)
 
 
-def verify_cli_prerequisites(*, aws_profile: str, owner_type: str) -> None:
+def verify_cli_prerequisites(*, aws_profile: str, owner_type: str | None) -> None:
     os.environ["AWS_PROFILE"] = aws_profile
     print_step(f"Using AWS profile '{aws_profile}'.")
     run_command_checked(["terraform", "version"], description="Checking Terraform CLI...")
@@ -462,6 +464,9 @@ def verify_cli_prerequisites(*, aws_profile: str, owner_type: str) -> None:
             f"AWS authentication failed for profile '{aws_profile}'. "
             f"Refresh credentials first (for SSO usually: aws sso login --profile {aws_profile}).\n{exc}"
         ) from exc
+    if owner_type is None:
+        return
+
     run_command_checked(["gh", "--version"], description="Checking GitHub CLI...")
     if owner_type == "Organization":
         ensure_gh_scope("admin:org")
@@ -591,6 +596,154 @@ def list_policy_statements(policy_document: dict[str, object]) -> list[dict[str,
     if isinstance(raw_statements, list):
         return [statement for statement in raw_statements if isinstance(statement, dict)]
     raise RuntimeError("IAM trust policy does not contain a valid Statement list.")
+
+
+def normalize_to_list(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return []
+
+
+def load_inline_role_policy_document(*, role_name: str, policy_name: str) -> dict[str, object]:
+    output_raw = run_command_checked(
+        [
+            "aws",
+            "iam",
+            "get-role-policy",
+            "--role-name",
+            role_name,
+            "--policy-name",
+            policy_name,
+            "--query",
+            "PolicyDocument",
+            "--output",
+            "json",
+        ],
+        description=f"Reading IAM inline policy '{policy_name}' for role '{role_name}'...",
+    )
+
+    parsed_output = json.loads(output_raw)
+    if isinstance(parsed_output, dict):
+        return parsed_output
+    if not isinstance(parsed_output, str):
+        raise RuntimeError(f"Unsupported IAM inline policy payload type for role '{role_name}'.")
+
+    policy_document = json.loads(unquote(parsed_output))
+    if not isinstance(policy_document, dict):
+        raise RuntimeError(f"Unexpected IAM inline policy shape for role '{role_name}'.")
+    return policy_document
+
+
+def ensure_bootstrap_role_inline_policy(*, tf_state_bucket: str) -> bool:
+    policy_document = load_inline_role_policy_document(
+        role_name=DEFAULT_BOOTSTRAP_ROLE_NAME,
+        policy_name=DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME,
+    )
+    statements = list_policy_statements(policy_document)
+    changed = False
+
+    organizations_statement = next(
+        (statement for statement in statements if statement.get("Sid") == "OrganizationsBootstrap"),
+        None,
+    )
+    if organizations_statement is None:
+        statements.append(
+            {
+                "Sid": "OrganizationsBootstrap",
+                "Effect": "Allow",
+                "Action": [
+                    "organizations:CloseAccount",
+                    "organizations:CreateAccount",
+                    "organizations:CreateOrganizationalUnit",
+                    "organizations:DeleteOrganizationalUnit",
+                    "organizations:Describe*",
+                    "organizations:EnableAWSServiceAccess",
+                    "organizations:List*",
+                    "organizations:MoveAccount",
+                    "organizations:TagResource",
+                    "organizations:UntagResource",
+                    "organizations:UpdateOrganizationalUnit",
+                ],
+                "Resource": "*",
+            }
+        )
+        changed = True
+    else:
+        actions = normalize_to_list(organizations_statement.get("Action", []))
+        if "organizations:EnableAWSServiceAccess" not in actions:
+            actions.append("organizations:EnableAWSServiceAccess")
+            organizations_statement["Action"] = actions
+            changed = True
+
+    state_object_scope = f"arn:aws:s3:::{tf_state_bucket}/{BOOTSTRAP_REPO_STATE_PREFIX}/*"
+    state_statement = next(
+        (statement for statement in statements if statement.get("Sid") == "StateObjectsReadWrite"),
+        None,
+    )
+    if state_statement is None:
+        statements.append(
+            {
+                "Sid": "StateObjectsReadWrite",
+                "Effect": "Allow",
+                "Action": ["s3:DeleteObject", "s3:GetObject", "s3:PutObject"],
+                "Resource": [state_object_scope],
+            }
+        )
+        changed = True
+    else:
+        resources = normalize_to_list(state_statement.get("Resource", []))
+        if state_object_scope not in resources:
+            resources.append(state_object_scope)
+            state_statement["Resource"] = resources
+            changed = True
+
+    account_statement = next(
+        (statement for statement in statements if statement.get("Sid") == "AccountPoolRename"),
+        None,
+    )
+    if account_statement is None:
+        statements.append(
+            {
+                "Sid": "AccountPoolRename",
+                "Effect": "Allow",
+                "Action": ["account:GetAccountInformation", "account:PutAccountName"],
+                "Resource": "*",
+            }
+        )
+        changed = True
+    else:
+        actions = normalize_to_list(account_statement.get("Action", []))
+        for action in ["account:GetAccountInformation", "account:PutAccountName"]:
+            if action not in actions:
+                actions.append(action)
+                changed = True
+        account_statement["Action"] = actions
+        if account_statement.get("Resource") != "*":
+            account_statement["Resource"] = "*"
+            changed = True
+
+    if not changed:
+        print_step(f"IAM inline policy '{DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME}' is already current.")
+        return False
+
+    policy_document["Statement"] = statements
+    run_command_checked(
+        [
+            "aws",
+            "iam",
+            "put-role-policy",
+            "--role-name",
+            DEFAULT_BOOTSTRAP_ROLE_NAME,
+            "--policy-name",
+            DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME,
+            "--policy-document",
+            json.dumps(policy_document, separators=(",", ":")),
+        ],
+        description=f"Updating IAM inline policy '{DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME}'...",
+    )
+    return True
 
 
 def is_github_oidc_statement(statement: dict[str, object]) -> bool:
@@ -746,11 +899,12 @@ def inspect_existing_aws_prerequisites(*, aws_account_id: str, aws_region: str) 
 
 def write_runtime_tfvars(*, org: str, repo: str, aws_region: str) -> str:
     print_step("Preparing temporary Terraform variables for AWS prerequisite...")
+    effective_repo = repo.strip() or BOOTSTRAP_PLACEHOLDER_REPO
     content = "\n".join(
         [
             f'aws_region = "{aws_region}"',
             f'github_org = "{org}"',
-            f'github_repo = "{repo}"',
+            f'github_repo = "{effective_repo}"',
             "",
         ]
     )
@@ -834,11 +988,10 @@ def upsert_github_variables(
 def main() -> int:
     args = parse_args()
     print_step(
-        f"Starting AWS prerequisite bootstrap for owner='{args.org}', repo='{args.repo}', region='{args.aws_region}'."
+        f"Starting AWS foundation prerequisite for owner='{args.org}', region='{args.aws_region}'."
     )
     aws_profile = resolve_aws_profile(args.aws_profile)
-    owner_type = resolve_github_owner_type(args.org)
-    print_step(f"Detected GitHub owner type '{owner_type}' for '{args.org}'.")
+    owner_type = None
     verify_cli_prerequisites(aws_profile=aws_profile, owner_type=owner_type)
     aws_account_id = get_aws_account_id()
     tf_state_bucket, resource_state = inspect_existing_aws_prerequisites(
@@ -850,19 +1003,17 @@ def main() -> int:
     missing_resources = [name for name, exists in resource_state.items() if not exists]
     bootstrap_mode = ""
     bootstrap_changes: list[str] = []
-    ensure_bootstrap_environment(owner=args.org, repo=args.repo)
-
     base_dir = Path(__file__).resolve().parent
     if len(existing_resources) == len(resource_state):
         bootstrap_mode = "reused-existing"
         print(green("[OK] All required AWS prerequisite resources already exist. Skipping Terraform apply."))
         for resource_name in existing_resources:
             print(green(f"  - {resource_name}"))
-        if ensure_bootstrap_role_trust_policy(org=args.org, repo=args.repo):
-            bootstrap_changes.append(f"IAM trust policy for role {DEFAULT_BOOTSTRAP_ROLE_NAME}")
+        if ensure_bootstrap_role_inline_policy(tf_state_bucket=tf_state_bucket):
+            bootstrap_changes.append(f"IAM inline policy {DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME}")
     elif len(existing_resources) == 0:
         bootstrap_mode = "created"
-        tfvars_path = write_runtime_tfvars(org=args.org, repo=args.repo, aws_region=args.aws_region)
+        tfvars_path = write_runtime_tfvars(org=args.org, repo="", aws_region=args.aws_region)
         try:
             outputs = run_terraform(base_dir, tfvars_path=tfvars_path)
         finally:
@@ -875,6 +1026,7 @@ def main() -> int:
             raise RuntimeError(
                 f"Terraform output tf_state_bucket='{tf_state_bucket_output}' does not match expected '{tf_state_bucket}'."
             )
+        bootstrap_changes.append(f"IAM inline policy {DEFAULT_BOOTSTRAP_ROLE_POLICY_NAME}")
     else:
         existing_text = ", ".join(existing_resources)
         missing_text = ", ".join(missing_resources)
@@ -885,19 +1037,10 @@ def main() -> int:
             f"Missing: {missing_text}"
         )
 
-    variable_changes = upsert_github_variables(
-        owner=args.org,
-        repo=args.repo,
-        aws_region=args.aws_region,
-        aws_account_id=aws_account_id,
-        tf_state_bucket=tf_state_bucket,
-    )
-
     print("\nbootstrap-aws-prerequisite summary:")
     print(f"- owner: {args.org}")
-    print(f"- owner_type: {owner_type}")
-    print(f"- repo: {args.repo}")
-    print(f"- bootstrap_environment: {BOOTSTRAP_ENVIRONMENT_NAME}")
+    print(f"- owner_type: {owner_type or 'not checked'}")
+    print("- repo: not configured")
     print(f"- aws_region: {args.aws_region}")
     print(f"- aws_profile: {aws_profile}")
     print(f"- bootstrap_mode: {bootstrap_mode}")
@@ -905,7 +1048,7 @@ def main() -> int:
     print(f"- bootstrap_role_name: {DEFAULT_BOOTSTRAP_ROLE_NAME}")
     print(f"- tf_state_bucket: {tf_state_bucket}")
     print(f"- tf_lock_table: {DEFAULT_LOCK_TABLE_NAME}")
-    for change in bootstrap_changes + variable_changes:
+    for change in bootstrap_changes:
         print(f"- upsert {change}")
 
     print("\nDone.")

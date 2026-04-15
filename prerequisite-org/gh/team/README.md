@@ -5,7 +5,7 @@ Ten katalog zawiera idempotentny skrypt do przygotowania teamu administratorow.
 ## Uruchomienie
 
 ```ps1
-Set-Location terraform/prerequisite/gh
+Set-Location prerequisite-org/gh
 python team/bootstrap-gh-team.py `
   --org KnightRadiants `
   --team-name "administrators" `
