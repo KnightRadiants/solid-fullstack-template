@@ -1,56 +1,30 @@
 # solid-fullstack-template
 
-Template do szybkiego startu aplikacji z bootstrapem AWS Organizations + IAM + governance GitHub.
+Ten template pomaga wystartowac nowe repo aplikacji z gotowym podzialem na konta AWS, rolami IAM dla GitHub Actions i podstawowym governance w GitHub. Po bootstrapie repo ma przygotowane srodowiska, role do deploymentu oraz konfiguracje potrzebna do dalszych pipeline'ow.
 
-## 1. One-time prerequisite (na AWS management account + GitHub org)
+## Wymagania startowe
 
-1. Wykonaj AWS prerequisite:
-   - [terraform/prerequisite/aws/README.md](terraform/prerequisite/aws/README.md)
-1. Wykonaj GitHub prerequisite (GitHub App + team + bootstrap secrets/variables):
-   - [terraform/prerequisite/gh/README.md](terraform/prerequisite/gh/README.md)
-1. Jesli nie ustawiles ich przez `bootstrap-gh.py`, ustaw GitHub Variables (repo lub org):
-   - `AWS_REGION`
-   - `AWS_ROLE_TO_ASSUME`
-   - `TF_STATE_BUCKET`
-   - `TF_LOCK_TABLE`
-   - opcjonalnie `TF_STATE_KEY_PREFIX` (domyslnie workflow uzywa `bootstrap-org`)
-1. Jesli nie ustawiles ich przez `bootstrap-gh.py`, ustaw GitHub Secrets (repo lub org):
-   - `GH_APP_ID`
-   - `GH_APP_PRIVATE_KEY`
+Zeby skorzystac z tego template, potrzebujesz:
+- AWS management account, na ktorym mozesz zarzadzac AWS Organizations i tworzyc konta czlonkowskie.
+- Wlasna organizacje GitHub albo uprawnienia administratora w organizacji GitHub, w ktorej bedziesz tworzyc repo z template.
+- Uprawnienia administratora do repo utworzonego z template, zeby przygotowac environment `bootstrap` i uruchomic workflow bootstrapowy.
 
-## 2. Per nowe repo utworzone z template (zalecany flow)
+## Trzy fazy
 
-Uruchom workflow `bootstrap-all` i podaj:
-- `app_slug` (np. `todo-list`)
-- `root_email_base` (np. `owner@example.com`)
-- `bootstrap_mode` (`safe` albo `debug`)
-- `debug_suffix` (opcjonalnie, glownie dla `debug`)
-- `preset` (`minimal`, `dev-lite`, `dev-standard`, `release`, `full-qa`)
-- `aws_region` (opcjonalnie; puste = `AWS_REGION` z Variables)
+1. [Organization prerequisite](prerequisite-org/README.md) - jednorazowy fundament dla AWS management account i GitHub ownera.
+1. [Repository prerequisite](prerequisite-repo/README.md) - przygotowanie konkretnego repo utworzonego z template.
+1. [Bootstrap repo w GitHub Actions](.github/workflows/README.md) - workflow `bootstrap-repo.yml`, ktory tworzy konta aplikacji, role deployowe i governance repo.
 
-`bootstrap-all` uruchamia automatycznie:
-1. `bootstrap-org` (OU + konta AWS z presetu)
-1. `bootstrap-iam-matrix` (rola `gha-environment-deploy` w kazdym koncie)
-1. `bootstrap-gh-core` (branche, default branch, GitHub Environments)
-1. `bootstrap-gh-bind` (AWS role vars per GitHub Environment)
+Po tych trzech fazach codzienne deploymenty powinny uzywac juz katalogu:
+- [terraform/](terraform/README.md)
 
-Szczegoly workflow:
-- [.github/workflows/README.md](.github/workflows/README.md)
-
-## 3. Manualny fallback (gdy nie uzywasz orchestratora)
-
-1. `bootstrap-org`
-1. `bootstrap-iam-matrix`
-1. `bootstrap-gh-core`
-1. `bootstrap-gh-bind`
-
-## 4. Presety
+## Presety
 
 Kontrakt presetow jest w:
 - [config/README.md](config/README.md)
 - [config/presets.json](config/presets.json)
 
-## 5. Security implementation plan
+## Security implementation plan
 
 Szczegolowy plan wdrozenia security i governance:
 - [docs/US-1.2-SECURITY-IMPLEMENTATION-PLAN.md](docs/US-1.2-SECURITY-IMPLEMENTATION-PLAN.md)
