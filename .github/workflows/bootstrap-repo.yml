@@ -829,6 +829,184 @@ jobs:
                         .addList(summary)
                         .write();
 
+            - name: Ensure CODEOWNERS for critical paths
+              uses: actions/github-script@v7
+              env:
+                  REPO_BRANCHES_JSON: ${{ steps.preset.outputs.repo_branches_json }}
+              with:
+                  github-token: ${{ steps.app-token.outputs.token }}
+                  script: |
+                      const branchesFromPreset = JSON.parse(process.env.REPO_BRANCHES_JSON || "[]")
+                        .map((value) => String(value || "").trim())
+                        .filter(Boolean);
+                      const branches = [...new Set(["main", ...branchesFromPreset])];
+                      const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+                      const summary = [];
+
+                      const { data: ownerInfo } = await github.rest.users.getByUsername({
+                        username: owner,
+                      });
+
+                      let codeOwnerHandle = `@${owner}`;
+                      if (ownerInfo.type === "Organization") {
+                        try {
+                          await github.rest.teams.getByName({
+                            org: owner,
+                            team_slug: "administrators",
+                          });
+                          codeOwnerHandle = `@${owner}/administrators`;
+                        } catch (error) {
+                          if (error.status === 404) {
+                            core.setFailed(
+                              `Missing required team '${owner}/administrators'. Run prerequisite-org/gh bootstrap first.`
+                            );
+                            return;
+                          }
+                          throw error;
+                        }
+                      }
+
+                      const desiredContent = [
+                        "# Managed by bootstrap-repo workflow.",
+                        "# Critical governance paths.",
+                        `.github/workflows/** ${codeOwnerHandle}`,
+                        `terraform/** ${codeOwnerHandle}`,
+                        `config/presets.json ${codeOwnerHandle}`,
+                        "",
+                      ].join("\n");
+
+                      for (const branch of branches) {
+                        let existingSha = "";
+                        let existingContent = "";
+
+                        try {
+                          const { data } = await github.rest.repos.getContent({
+                            owner,
+                            repo,
+                            path: ".github/CODEOWNERS",
+                            ref: branch,
+                          });
+
+                          if (!("content" in data) || !data.content) {
+                            throw new Error(`Unsupported content payload for branch '${branch}'.`);
+                          }
+
+                          existingSha = data.sha || "";
+                          existingContent = Buffer.from(data.content, "base64").toString("utf8");
+                        } catch (error) {
+                          if (error.status !== 404) {
+                            throw error;
+                          }
+                        }
+
+                        const normalize = (value) => String(value || "").replace(/\r\n/g, "\n").trimEnd();
+                        if (normalize(existingContent) === normalize(desiredContent)) {
+                          summary.push(`skip CODEOWNERS (${branch}): already up to date`);
+                          continue;
+                        }
+
+                        await github.rest.repos.createOrUpdateFileContents({
+                          owner,
+                          repo,
+                          path: ".github/CODEOWNERS",
+                          message: "chore(repo): bootstrap CODEOWNERS for protected paths",
+                          content: Buffer.from(desiredContent, "utf8").toString("base64"),
+                          branch,
+                          ...(existingSha ? { sha: existingSha } : {}),
+                        });
+
+                        summary.push(`${existingSha ? "update" : "create"} CODEOWNERS (${branch})`);
+                      }
+
+                      core.summary
+                        .addHeading("configure-github-repo: CODEOWNERS")
+                        .addList(summary)
+                        .write();
+
+            - name: Ensure repository rulesets for protected branches
+              uses: actions/github-script@v7
+              env:
+                  REPO_BRANCHES_JSON: ${{ steps.preset.outputs.repo_branches_json }}
+              with:
+                  github-token: ${{ steps.app-token.outputs.token }}
+                  script: |
+                      const branchesFromPreset = JSON.parse(process.env.REPO_BRANCHES_JSON || "[]")
+                        .map((value) => String(value || "").trim())
+                        .filter(Boolean);
+                      const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+                      const summary = [];
+
+                      const targetBranches = ["main"];
+                      if (branchesFromPreset.includes("dev")) {
+                        targetBranches.push("dev");
+                      }
+
+                      const rulesetNameForBranch = (branch) => `bootstrap-protect-${branch}`;
+                      const buildRulesetPayload = (branch) => ({
+                        name: rulesetNameForBranch(branch),
+                        target: "branch",
+                        enforcement: "active",
+                        conditions: {
+                          ref_name: {
+                            include: [`refs/heads/${branch}`],
+                            exclude: [],
+                          },
+                        },
+                        rules: [
+                          {
+                            type: "pull_request",
+                            parameters: {
+                              allowed_merge_methods: ["merge", "squash", "rebase"],
+                              dismiss_stale_reviews_on_push: true,
+                              require_code_owner_review: true,
+                              require_last_push_approval: false,
+                              required_approving_review_count: 1,
+                              required_review_thread_resolution: true,
+                            },
+                          },
+                          {
+                            type: "non_fast_forward",
+                          },
+                        ],
+                      });
+
+                      const { data: existingRulesets } = await github.request("GET /repos/{owner}/{repo}/rulesets", {
+                        owner,
+                        repo,
+                      });
+
+                      const repoRulesets = (Array.isArray(existingRulesets) ? existingRulesets : []).filter(
+                        (ruleset) => String(ruleset?.source_type || "").toLowerCase() !== "organization"
+                      );
+
+                      for (const branch of targetBranches) {
+                        const rulesetName = rulesetNameForBranch(branch);
+                        const payload = buildRulesetPayload(branch);
+                        const existing = repoRulesets.find((ruleset) => String(ruleset?.name || "") === rulesetName);
+
+                        if (existing) {
+                          await github.request("PUT /repos/{owner}/{repo}/rulesets/{ruleset_id}", {
+                            owner,
+                            repo,
+                            ruleset_id: existing.id,
+                            ...payload,
+                          });
+                          summary.push(`update ruleset: ${rulesetName}`);
+                        } else {
+                          await github.request("POST /repos/{owner}/{repo}/rulesets", {
+                            owner,
+                            repo,
+                            ...payload,
+                          });
+                          summary.push(`create ruleset: ${rulesetName}`);
+                        }
+                      }
+
+                      core.summary
+                        .addHeading("configure-github-repo: rulesets")
+                        .addList(summary)
+                        .write();
+
     bind-deploy-roles:
         needs: configure-github-repo
         runs-on: ubuntu-latest

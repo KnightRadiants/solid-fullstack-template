@@ -1,16 +1,71 @@
-# Organization prerequisite
+# Organization Prerequisite
 
-Ten katalog przygotowuje fundament wspolny dla AWS management account i GitHub ownera. Uruchamiasz go raz, zanim zaczniesz przygotowywac konkretne repo z template.
+Breadcrumbs: [Repo](../README.md) > **Faza 1: bootstrap organizacji**
 
-## Kolejnosc
+## Spis tresci
 
-1. `bootstrap-organization.py` zbiera kontekst lokalny: GitHub owner, AWS region, AWS profile.
-1. `terraform/bootstrap-aws-foundation.py` przygotowuje AWS foundation:
-   S3 bucket na Terraform state, DynamoDB lock table, GitHub OIDC provider i role `gha-bootstrap-org`.
-1. `gh/bootstrap-github-governance.py` przygotowuje GitHub governance:
-   GitHub App, zapis credentials Appki w AWS SSM i team `administrators` dla organizacji.
+- [Cel fazy](#cel-fazy)
+- [Kolejnosc wykonywania](#kolejnosc-wykonywania)
+- [Krok 1: kontekst lokalny](#krok-1-kontekst-lokalny)
+- [Krok 2: AWS foundation](#krok-2-aws-foundation)
+- [Krok 3: GitHub governance](#krok-3-github-governance)
+- [Szybki start](#szybki-start)
+- [Wynik fazy](#wynik-fazy)
+- [Co dalej](#co-dalej)
 
-Na tym etapie nie konfigurujemy jeszcze konkretnego repo. Repo jest dopinane dopiero w `prerequisite-repo`.
+## Cel fazy
+
+Ten katalog przygotowuje fundament wspolny dla AWS management account i GitHub ownera.
+Uruchamiasz go raz przed przygotowaniem konkretnych repo z template.
+
+Na tym etapie nie konfigurujemy jeszcze repo aplikacji. Repo jest dopinane dopiero w [../prerequisite-repo/README.md](../prerequisite-repo/README.md).
+
+## Kolejnosc wykonywania
+
+`bootstrap-organization.py` wykonuje kroki w tej kolejnosci:
+
+1. Zbiera kontekst lokalny: GitHub owner, AWS region, AWS profile.
+1. Uruchamia AWS foundation z [terraform/README.md](terraform/README.md).
+1. Uruchamia GitHub governance z [gh/README.md](gh/README.md).
+
+Nie ma tu przeplatania AWS/GitHub/AWS. Kolejnosc jest prosta: najpierw AWS, potem GitHub.
+
+## Krok 1: kontekst lokalny
+
+Skrypt probuje ustalic:
+- GitHub owner z `--org` albo z `git remote origin`,
+- AWS region z `--aws-region` albo z menu,
+- AWS profile z `--aws-profile`, `AWS_PROFILE` albo z menu profili w `~/.aws`.
+
+## Krok 2: AWS foundation
+
+Szczegoly: [terraform/README.md](terraform/README.md)
+
+`terraform/bootstrap-aws-foundation.py`:
+1. Sprawdza AWS credentials i identyfikuje management account.
+1. Sprawdza, czy istnieja zasoby fundamentu.
+1. Jesli nie istnieja, uruchamia Terraform.
+1. Jesli istnieja wszystkie, pomija Terraform apply.
+1. Jesli istnieje tylko czesc, przerywa z bledem.
+
+Tworzone zasoby:
+- S3 bucket `tfstate-<account-id>-<region>`,
+- DynamoDB table `terraform-locks`,
+- IAM OIDC provider `token.actions.githubusercontent.com`,
+- IAM role `gha-bootstrap-org` z policy potrzebna do bootstrapu repo i account pool.
+
+Opis przeplywu GitHub OIDC, STS i trust policy jest w [terraform/README.md#jak-dziala-github-oidc](terraform/README.md#jak-dziala-github-oidc).
+
+## Krok 3: GitHub governance
+
+Szczegoly: [gh/README.md](gh/README.md)
+
+`gh/bootstrap-github-governance.py`:
+1. Sprawdza GitHub ownera i wymagane scope'y `gh`.
+1. Szuka istniejacych credentials GitHub Appki lokalnie i w AWS SSM.
+1. Tworzy albo wybiera GitHub App.
+1. Zapisuje credentials GitHub Appki w AWS SSM jako backup/fallback.
+1. Dla GitHub Organization zapewnia team `administrators`.
 
 ## Szybki start
 
@@ -21,26 +76,24 @@ python bootstrap-organization.py `
   --aws-region eu-central-1
 ```
 
-Jesli pominiesz `--org`, skrypt sprobuje wziac ownera z `git remote origin`.
-Jesli pominiesz `--aws-region`, skrypt pokaze menu regionow.
-Jesli nie ustawisz `AWS_PROFILE` i nie podasz `--aws-profile`, skrypt wyswietli profile znalezione w `~/.aws` i poprosi o wybor.
+Opcjonalne argumenty:
+- `--org` - GitHub owner,
+- `--aws-profile` - AWS profile,
+- `--app-name` - nazwa GitHub App,
+- `--team-maintainers` - maintainerzy teamu `administrators`.
 
 ## Wynik fazy
 
 Po tej fazie istnieja:
-- S3 bucket `tfstate-<account-id>-<region>`.
-- DynamoDB table `terraform-locks`.
-- IAM OIDC provider `token.actions.githubusercontent.com`.
-- IAM role `gha-bootstrap-org`.
-- GitHub App do governance/bootstrapu.
-- Credentials GitHub Appki zapisane w AWS SSM.
-- Team `administrators` dla GitHub Organization, jesli owner jest organizacja.
+- S3 bucket `tfstate-<account-id>-<region>`,
+- DynamoDB table `terraform-locks`,
+- IAM OIDC provider `token.actions.githubusercontent.com`,
+- IAM role `gha-bootstrap-org`,
+- GitHub App do governance/bootstrapu,
+- credentials GitHub Appki zapisane w AWS SSM,
+- team `administrators` dla GitHub Organization, jesli owner jest organizacja.
 
 ## Co dalej
 
-Dla kazdego repo utworzonego z template uruchom:
+Dla kazdego repo utworzonego z template uruchom faze 2:
 - [../prerequisite-repo/README.md](../prerequisite-repo/README.md)
-
-Szczegoly techniczne:
-- [terraform/README.md](terraform/README.md)
-- [gh/README.md](gh/README.md)

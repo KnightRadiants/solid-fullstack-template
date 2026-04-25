@@ -11,7 +11,7 @@ Dokument dotyczy repo tworzonych z template. Testy wykonujemy na repo testowych 
 
 ## 2. Stan obecny (baseline)
 
-Status zweryfikowany na podstawie aktualnego repo: `2026-04-15`.
+Status zweryfikowany na podstawie aktualnego repo: `2026-04-24`.
 
 Mamy:
 - `bootstrap-repo` orchestration,
@@ -22,12 +22,14 @@ Mamy:
 - GitHub App token flow dla operacji governance,
 - sekrety `GH_APP_ID` i `GH_APP_PRIVATE_KEY` trzymane na environment `bootstrap`,
 - bootstrapowe zmienne AWS (`AWS_REGION`, `AWS_ACCOUNT_ID`, `BOOTSTRAP_ROLE_NAME`, `TF_STATE_BUCKET`) trzymane na environment `bootstrap`,
-- role OIDC w AWS (`gha-bootstrap-org`, `gha-environment-deploy`) z trustem opartym o `repo + environment`.
+- role OIDC w AWS (`gha-bootstrap-org`, `gha-environment-deploy`) z trustem opartym o `repo + environment`,
+- automatyczne utrzymanie `.github/CODEOWNERS` dla krytycznych sciezek,
+- automatyczne rulesety ochronne dla `main` oraz `dev` (jesli `dev` istnieje w presecie): PR required + code owner review + min approvals.
 
 Brakuje / otwarte:
-- twardych branch/ruleset protections,
 - twardego ograniczenia `workflow_dispatch` w `bootstrap-repo.yml` do `refs/heads/main`,
-- `CODEOWNERS` dla krytycznych sciezek (`.github/workflows/**`, `terraform/**`, `config/presets.json`),
+- required status checks w rulesetach (po ustaleniu docelowej listy checkow CI),
+- owner bypass actor dla chronionych branchy (Etap 5),
 - centralnego modelu "kto ma dostep do czego" zakodowanego w rulesetach.
 
 ## 3. Target security model (docelowy)
@@ -69,13 +71,13 @@ Brakuje / otwarte:
 
 ## 4. Plan wdrozenia (kolejnosc)
 
-### Status etapow (na 2026-04-15)
+### Status etapow (na 2026-04-24)
 
 - Etap 0: zrealizowany.
 - Etap 1: zrealizowany czesciowo (otwarty guard `refs/heads/main`).
 - Etap 2: zrealizowany.
 - Etap 3: zrealizowany funkcjonalnie (`repo + environment` w trust policy); dalsze zaciesnianie policy mozliwe iteracyjnie.
-- Etap 4: nie zrealizowany.
+- Etap 4: zrealizowany czesciowo (rulesety + CODEOWNERS; required status checks nadal otwarte).
 - Etap 5: nie zrealizowany.
 - Etap 6: nie zrealizowany.
 
@@ -156,12 +158,12 @@ Brakuje / otwarte:
 
 1. Dodac ruleset dla `dev`:
    - PR required
-   - required status checks
+   - required status checks (po ustaleniu listy checkow CI)
    - code owner review required (dla wszystkich poza owner, ktory moze uzyc bypass)
    - min approvals = 1
 1. Dodac ruleset dla `main`:
    - PR required
-   - required status checks
+   - required status checks (po ustaleniu listy checkow CI)
    - code owner review required
    - brak direct push
 1. Dodac CODEOWNERS dla:

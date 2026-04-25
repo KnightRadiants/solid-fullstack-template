@@ -11,3 +11,9 @@
 ## Commit Messages
 
 - When creating commits, follow the commit message convention defined in `COMMIT.md`.
+
+## Documentation Sync
+
+- Keep `docs/operational-overview.md` up to date as the short operational overview of the repository.
+- Keep `docs/US-1.2-SECURITY-IMPLEMENTATION-PLAN.md` up to date as the detailed security/governance plan.
+- After every change in bootstrap/security/governance behavior, update both files so status ("zrealizowane" vs "otwarte") matches the real implementation.

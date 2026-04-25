@@ -1,17 +1,68 @@
-# GitHub governance prerequisite
+# GitHub Governance Prerequisite
 
-Ten katalog przygotowuje rzeczy GitHub wspolne dla ownera.
+Breadcrumbs: [Repo](../../README.md) > [Faza 1: bootstrap organizacji](../README.md) > **GitHub governance**
 
-## Kolejnosc
+## Spis tresci
 
-1. `bootstrap-github-governance.py` sprawdza GitHub ownera i wymagane scope'y `gh`.
+- [Cel katalogu](#cel-katalogu)
+- [Kolejnosc wykonywania](#kolejnosc-wykonywania)
+- [Krok 1: GitHub owner i scope](#krok-1-github-owner-i-scope)
+- [Krok 2: GitHub App credentials](#krok-2-github-app-credentials)
+- [Krok 3: team administrators](#krok-3-team-administrators)
+- [Sekrety dla konkretnego repo](#sekrety-dla-konkretnego-repo)
+- [Szybki start](#szybki-start)
+- [Wymagania](#wymagania)
+- [Szczegoly](#szczegoly)
+
+## Cel katalogu
+
+Ten katalog przygotowuje GitHub governance wspolne dla ownera.
+Jest uruchamiany przez [../bootstrap-organization.py](../bootstrap-organization.py) po AWS foundation.
+
+## Kolejnosc wykonywania
+
+`bootstrap-github-governance.py`:
+1. Sprawdza GitHub ownera i typ ownera (`Organization` albo `User`).
+1. Sprawdza wymagane scope'y `gh`.
 1. Szuka istniejacych credentials GitHub Appki w `app/out`, lokalnym cache i AWS SSM.
 1. Jesli trzeba, tworzy GitHub App przez manifest flow.
 1. Zapisuje `app_id` i `private_key_pem` w AWS SSM jako centralny backup/fallback.
 1. Dla organizacji zapewnia team `administrators`.
 
+## Krok 1: GitHub owner i scope
+
+Dla GitHub Organization wymagany jest scope:
+
+```ps1
+gh auth refresh -h github.com -s admin:org
+```
+
+Dla ownera typu `User` skrypt pomija teamy, bo teamy istnieja tylko w organizacjach.
+
+## Krok 2: GitHub App credentials
+
+Szczegoly: [app/README.md](app/README.md)
+
+Skrypt najpierw probuje reuse:
+- `app/out`,
+- lokalny cache,
+- AWS SSM.
+
+Jesli nie znajdzie pasujacych credentials, odpala manifest flow i zapisuje:
+- `github-app-<APP_ID>.private-key.pem`,
+- `github-app-<APP_ID>.credentials.json`.
+
+## Krok 3: team administrators
+
+Szczegoly: [team/README.md](team/README.md)
+
+Dla organizacji skrypt zapewnia team `administrators`.
+Ten team jest pozniej uzywany jako code owner i jako naturalna grupa adminow bootstrapu.
+
+## Sekrety dla konkretnego repo
+
 Environment secrets `GH_APP_ID` i `GH_APP_PRIVATE_KEY` na `bootstrap` nie sa tutaj ustawiane globalnie.
-Dla konkretnego repo (przez `--bootstrap-repo`) robi to:
+Dla konkretnego repo robi to faza 2:
 - [../../prerequisite-repo/github/03-write-bootstrap-app-secrets.py](../../prerequisite-repo/github/03-write-bootstrap-app-secrets.py)
 
 ## Szybki start
@@ -29,12 +80,7 @@ python bootstrap-github-governance.py `
 
 - `gh auth login`
 - Dla GitHub Organization: scope `admin:org`
-
-```ps1
-gh auth refresh -h github.com -s admin:org
-```
-
-Przy ownerze typu `User` skrypt pomija teamy, bo teamy istnieja tylko w organizacjach.
+- AWS credentials, jesli ma dzialac backup/fallback przez AWS SSM
 
 ## Szczegoly
 
