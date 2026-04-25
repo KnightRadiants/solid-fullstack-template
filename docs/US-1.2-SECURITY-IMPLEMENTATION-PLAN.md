@@ -11,13 +11,14 @@ Dokument dotyczy repo tworzonych z template. Testy wykonujemy na repo testowych 
 
 ## 2. Stan obecny (baseline)
 
-Status zweryfikowany na podstawie aktualnego repo: `2026-04-24`.
+Status zweryfikowany na podstawie aktualnego repo: `2026-04-25`.
 
 Mamy:
 - `bootstrap-repo` orchestration,
 - `bootstrap-repo` z jobami `create-app-accounts`, `resolve-targets`, `create-deploy-roles`, `configure-github-repo`, `bind-deploy-roles`,
-- environment gate: wszystkie joby workflow dzialaja na `environment: bootstrap`,
-- admin gate: wszystkie joby wymagaja `require-admin-access`,
+- environment gate: wszystkie joby zmieniajace bootstrap/governance dzialaja na `environment: bootstrap`,
+- fail-fast guard blokujacy `workflow_dispatch` spoza `refs/heads/main` przed approvalem `bootstrap`,
+- admin gate: wszystkie joby zmieniajace bootstrap/governance wymagaja `require-admin-access`,
 - least-privilege `permissions:` per job (`id-token`/`contents`/`deployments` tylko tam, gdzie potrzebne),
 - GitHub App token flow dla operacji governance,
 - sekrety `GH_APP_ID` i `GH_APP_PRIVATE_KEY` trzymane na environment `bootstrap`,
@@ -27,7 +28,6 @@ Mamy:
 - automatyczne rulesety ochronne dla `main` oraz `dev` (jesli `dev` istnieje w presecie): PR required + code owner review + min approvals.
 
 Brakuje / otwarte:
-- twardego ograniczenia `workflow_dispatch` w `bootstrap-repo.yml` do `refs/heads/main`,
 - required status checks w rulesetach (po ustaleniu docelowej listy checkow CI),
 - owner bypass actor dla chronionych branchy (Etap 5),
 - centralnego modelu "kto ma dostep do czego" zakodowanego w rulesetach.
@@ -71,10 +71,10 @@ Brakuje / otwarte:
 
 ## 4. Plan wdrozenia (kolejnosc)
 
-### Status etapow (na 2026-04-24)
+### Status etapow (na 2026-04-25)
 
 - Etap 0: zrealizowany.
-- Etap 1: zrealizowany czesciowo (otwarty guard `refs/heads/main`).
+- Etap 1: zrealizowany.
 - Etap 2: zrealizowany.
 - Etap 3: zrealizowany funkcjonalnie (`repo + environment` w trust policy); dalsze zaciesnianie policy mozliwe iteracyjnie.
 - Etap 4: zrealizowany czesciowo (rulesety + CODEOWNERS; required status checks nadal otwarte).

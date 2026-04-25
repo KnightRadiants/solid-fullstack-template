@@ -23,6 +23,8 @@ Workflow tworzy zasoby aplikacyjne dla tego repo i dopina governance repo.
 
 ## Kolejnosc jobow
 
+1. `guard-main-branch`
+   Fail-fast guard: konczy workflow, jesli `workflow_dispatch` zostal uruchomiony spoza `refs/heads/main`.
 1. `create-app-accounts`
    Tworzy OU `APP-<APP_SLUG>`. W trybie `safe` najpierw probuje zaimportowac konta z account pool `Unused`, a dopiero brakujace konta tworzy przez Terraform [aws-accounts](../../prerequisite-repo/terraform/aws-accounts/README.md).
 1. `resolve-targets`
@@ -59,10 +61,11 @@ Alternatywnie zamiast `AWS_ACCOUNT_ID` + `BOOTSTRAP_ROLE_NAME` mozesz ustawic `A
 
 ## Dostep i guardy
 
-- Wszystkie joby dzialaja na environment `bootstrap`.
+- Preflight job `guard-main-branch` nie uzywa sekretow ani environment gate; ma przerwac run spoza `refs/heads/main` przed approvalem.
+- Wszystkie joby wykonujace bootstrap zasobow dzialaja na environment `bootstrap`.
 - Workflow wymaga `admin` access do repo przez lokalna akcje [../actions/require-admin-access/action.yml](../actions/require-admin-access/action.yml).
 - Workflow ma guard, ktory blokuje uruchomienie na repo zrodlowym template o nazwie `solid-fullstack-template`.
-- Workflow nie ma jeszcze twardego warunku `github.ref == refs/heads/main`; to pozostaje otwartym elementem hardeningu.
+- Workflow ma twardy guard `GITHUB_REF == refs/heads/main`.
 - Environment `bootstrap` jest miejscem, gdzie trzymamy kontrakt prerequisite dla konkretnego repo.
 
 ## Powiazane README

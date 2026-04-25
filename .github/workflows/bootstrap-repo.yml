@@ -42,7 +42,22 @@ on:
                 default: ""
 
 jobs:
+    guard-main-branch:
+        runs-on: ubuntu-latest
+        permissions: {}
+
+        steps:
+            - name: Require main branch dispatch
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+                    echo "::error::bootstrap-repo workflow must be dispatched from refs/heads/main. Current ref: ${GITHUB_REF}"
+                    exit 1
+                  fi
+
     create-app-accounts:
+        needs: guard-main-branch
         runs-on: ubuntu-latest
         environment: bootstrap
         permissions:

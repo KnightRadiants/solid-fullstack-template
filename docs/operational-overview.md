@@ -10,12 +10,12 @@ Stan ma zawsze odzwierciedlac faktyczna implementacje.
 1. Uruchom workflow [bootstrap-repo.yml](../.github/workflows/bootstrap-repo.yml).
 1. Po bootstrapie rozwijaj runtime infrastrukture aplikacji w [terraform/README.md](../terraform/README.md).
 
-## Status wdrozenia security/governance (2026-04-24)
+## Status wdrozenia security/governance (2026-04-25)
 
 | Etap | Status | Co jest zrobione / co brakuje |
 | --- | --- | --- |
 | Etap 0 - prerequisite GH automation | zrealizowany | Orchestrator + app + team + idempotencja sa wdrozone. |
-| Etap 1 - zamrozenie powierzchni ataku bootstrap | czesciowo | Environment gate + admin gate sa wdrozone; brakuje twardego warunku uruchamiania tylko z `main`. |
+| Etap 1 - zamrozenie powierzchni ataku bootstrap | zrealizowany | Preflight guard wymusza `refs/heads/main`; joby bootstrapowe uzywaja environment gate i admin gate. |
 | Etap 2 - sekrety/zmienne przez environment gate | zrealizowany | Kontrakt `bootstrap` (secrets + variables) jest utrzymany przez prerequisite i workflow. |
 | Etap 3 - OIDC hardening (AWS) | zrealizowany funkcjonalnie | Trust policy oparta o `repo + environment`; dalsze zaciesnianie policy mozliwe iteracyjnie. |
 | Etap 4 - rulesets i branch protection | czesciowo | Rulesety i `CODEOWNERS` sa automatyzowane; required status checks pozostaja do doprecyzowania. |

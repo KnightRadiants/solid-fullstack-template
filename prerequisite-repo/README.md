@@ -66,6 +66,7 @@ Skrypt korzysta z GitHub governance z fazy 1. Jesli trzeba, reuse'uje credential
 
 Workflow [../.github/workflows/bootstrap-repo.yml](../.github/workflows/bootstrap-repo.yml) wykonuje joby liniowo:
 
+1. `guard-main-branch` - przerywa workflow, jesli run zostal uruchomiony spoza `refs/heads/main`.
 1. `create-app-accounts` - tworzy OU aplikacji i konta AWS albo importuje konta z puli `Unused`.
 1. `resolve-targets` - czyta output `account_ids` z Terraform state modulu `aws-accounts`.
 1. `create-deploy-roles` - tworzy role `gha-environment-deploy` w kontach aplikacji.
