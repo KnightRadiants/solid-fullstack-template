@@ -1,6 +1,22 @@
 # AWS Foundation Prerequisite
 
-Breadcrumbs: [Repo](../../README.md) > [Faza 1: bootstrap organizacji](../README.md) > **AWS foundation**
+## Mapa README
+
+- [Repo](../../README.md)
+  - [Faza 1: Organization prerequisite](../README.md)
+    - **AWS foundation**
+    - [GitHub governance](../gh/README.md)
+      - [GitHub App](../gh/app/README.md)
+      - [Administrators team](../gh/team/README.md)
+  - [Faza 2: Repository prerequisite](../../prerequisite-repo/README.md)
+    - [GitHub Actions workflow](../../.github/workflows/README.md)
+    - [Account pool](../../prerequisite-repo/app/README.md)
+    - [Terraform prerequisite](../../prerequisite-repo/terraform/README.md)
+      - [aws-accounts](../../prerequisite-repo/terraform/aws-accounts/README.md)
+      - [aws-iam](../../prerequisite-repo/terraform/aws-iam/README.md)
+  - [Faza 3: Application Terraform](../../terraform/README.md)
+  - [Wspolne: Config](../../config/README.md)
+  - [Wspolne: Scripts](../../scripts/README.md)
 
 ## Spis tresci
 

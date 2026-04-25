@@ -1,6 +1,22 @@
 # Workflow bootstrap-repo
 
-Breadcrumbs: [Repo](../../README.md) > [Faza 2: bootstrap repozytorium](../../prerequisite-repo/README.md) > **GitHub Actions workflow**
+## Mapa README
+
+- [Repo](../../README.md)
+  - [Faza 1: Organization prerequisite](../../prerequisite-org/README.md)
+    - [AWS foundation](../../prerequisite-org/terraform/README.md)
+    - [GitHub governance](../../prerequisite-org/gh/README.md)
+      - [GitHub App](../../prerequisite-org/gh/app/README.md)
+      - [Administrators team](../../prerequisite-org/gh/team/README.md)
+  - [Faza 2: Repository prerequisite](../../prerequisite-repo/README.md)
+    - **GitHub Actions workflow**
+    - [Account pool](../../prerequisite-repo/app/README.md)
+    - [Terraform prerequisite](../../prerequisite-repo/terraform/README.md)
+      - [aws-accounts](../../prerequisite-repo/terraform/aws-accounts/README.md)
+      - [aws-iam](../../prerequisite-repo/terraform/aws-iam/README.md)
+  - [Faza 3: Application Terraform](../../terraform/README.md)
+  - [Wspolne: Config](../../config/README.md)
+  - [Wspolne: Scripts](../../scripts/README.md)
 
 ## Spis tresci
 
