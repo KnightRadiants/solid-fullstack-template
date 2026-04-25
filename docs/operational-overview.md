@@ -18,13 +18,14 @@ Stan ma zawsze odzwierciedlac faktyczna implementacje.
 | Etap 1 - zamrozenie powierzchni ataku bootstrap | zrealizowany | Preflight guard wymusza `refs/heads/main`; joby bootstrapowe uzywaja environment gate i admin gate. |
 | Etap 2 - sekrety/zmienne przez environment gate | zrealizowany | Kontrakt `bootstrap` (secrets + variables) jest utrzymany przez prerequisite i workflow. |
 | Etap 3 - OIDC hardening (AWS) | zrealizowany funkcjonalnie | Trust policy oparta o `repo + environment`; dalsze zaciesnianie policy mozliwe iteracyjnie. |
-| Etap 4 - rulesets i branch protection | czesciowo | Rulesety i `CODEOWNERS` sa automatyzowane; required status checks pozostaja do doprecyzowania. |
-| Etap 5 - owner bypass i self-merge policy | nie zrealizowany | Brakuje konfiguracji bypass actor zgodnie z planem. |
+| Etap 4 - rulesets i branch protection | czesciowo | Rulesety i obecny `CODEOWNERS` sa automatyzowane dla `main`/`dev`; required status checks, rulesety `test`/`stage`, branch-specific CODEOWNERS, per-repo reviewer teams oraz personal account fallback pozostaja do wdrozenia wedlug [preset-merge-rules.md](./preset-merge-rules.md). |
+| Etap 5 - emergency bypass i self-merge policy | nie zrealizowany | Brakuje implementacji emergency bypass; standardowy org flow wymaga approvala z reviewer teams, a personal fallback wymaga approvala repo ownera. |
 | Etap 6 - E2E security regression | nie zrealizowany | Brakuje kompletnego zestawu testow regresji i artefaktow. |
 
 ## Najwazniejsze pliki zrodlowe
 
 - Szczegolowy plan i kryteria: [US-1.2-SECURITY-IMPLEMENTATION-PLAN.md](./US-1.2-SECURITY-IMPLEMENTATION-PLAN.md)
+- Merge rules per preset: [preset-merge-rules.md](./preset-merge-rules.md)
 - Glowny workflow bootstrap: [../.github/workflows/bootstrap-repo.yml](../.github/workflows/bootstrap-repo.yml)
 - Contract presetow: [../config/README.md](../config/README.md)
 

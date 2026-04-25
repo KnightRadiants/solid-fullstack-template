@@ -23,6 +23,7 @@
 - [Cel katalogu](#cel-katalogu)
 - [Co definiuje preset](#co-definiuje-preset)
 - [Konsumenci presetow](#konsumenci-presetow)
+- [Merge governance](#merge-governance)
 - [Kontrakt walidacji](#kontrakt-walidacji)
 - [Walidacja kontraktu](#walidacja-kontraktu)
 
@@ -44,6 +45,13 @@ Kazdy preset definiuje:
 - `.github/workflows/bootstrap-repo.yml`, job `create-app-accounts`.
 - `.github/workflows/bootstrap-repo.yml`, job `configure-github-repo`.
 - `scripts/validate-presets.py`.
+
+## Merge governance
+
+Docelowe wymagania merge dla kazdego presetu sa opisane w
+[../docs/preset-merge-rules.md](../docs/preset-merge-rules.md).
+Ten kontrakt opisuje, ktore branche powinny byc chronione i jakie gates sa
+wymagane dla `main`, `dev`, `test` i `stage`.
 
 ## Kontrakt walidacji
 
