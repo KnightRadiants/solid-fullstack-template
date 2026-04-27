@@ -1,0 +1,6 @@
+@SolidFullstackTemplate.Api_HostAddress = http://localhost:5283
+
+GET {{SolidFullstackTemplate.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
