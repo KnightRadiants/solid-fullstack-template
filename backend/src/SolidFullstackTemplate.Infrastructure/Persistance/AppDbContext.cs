@@ -3,17 +3,9 @@ using SolidFullstackTemplate.Domain.Entities;
 
 namespace SolidFullstackTemplate.Infrastructure.Persistance;
 
-public class AppDbContext : DbContext
+internal class AppDbContext(DbContextOptions<AppDbContext> options)
+    : DbContext(options)
 {
-    public AppDbContext()
-    {
-    }
-
-    public AppDbContext(DbContextOptions<AppDbContext> options)
-        : base(options)
-    {
-    }
-
     public DbSet<Restaurant> Restaurants { get; set; }
     public DbSet<Dish> Dishes { get; set; }
 
@@ -28,13 +20,5 @@ public class AppDbContext : DbContext
             .HasMany(r => r.Dishes)
             .WithOne()
             .HasForeignKey(d => d.RestaurantId);
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!optionsBuilder.IsConfigured)
-        {
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=SolidFullstackTemplate;Username=postgres;Password=postgres");
-        }
     }
 }

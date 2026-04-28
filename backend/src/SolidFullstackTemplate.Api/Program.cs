@@ -1,14 +1,11 @@
-using Microsoft.EntityFrameworkCore;
-using SolidFullstackTemplate.Infrastructure.Persistance;
+using SolidFullstackTemplate.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-builder.Services.AddControllers();
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services
+    .AddOpenApi()
+    .AddInfrastructure(builder.Configuration)
+    .AddControllers();
 
 var app = builder.Build();
 
