@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/SolidFullstackTemplate.Api/SolidFullstackTemplate.Api.csproj" />
+    <Project Path="src/SolidFullstackTemplate.Application/SolidFullstackTemplate.Application.csproj" />
+    <Project Path="src/SolidFullstackTemplate.Domain/SolidFullstackTemplate.Domain.csproj" />
+    <Project Path="src/SolidFullstackTemplate.Infrastructure/SolidFullstackTemplate.Infrastructure.csproj" />
   </Folder>
 </Solution>
