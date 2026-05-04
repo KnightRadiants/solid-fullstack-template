@@ -1,4 +1,5 @@
 using SolidFullstackTemplate.Infrastructure.Extensions;
+using SolidFullstackTemplate.Infrastructure.Seeders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,10 @@ builder.Services
     .AddControllers();
 
 var app = builder.Build();
+
+var scope = app.Services.CreateScope();
+var seeder = scope.ServiceProvider.GetRequiredService<IRestaurantSeeder>();
+await seeder.SeedAsync();
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
