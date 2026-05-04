@@ -4,3 +4,8 @@ GET http://{{host}}/api/restaurants
 Accept: application/json
 
 ###
+
+GET http://{{host}}/api/restaurants/1
+Accept: application/json
+
+###
