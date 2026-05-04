@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SolidFullstackTemplate.Domain.Repositories;
 using SolidFullstackTemplate.Infrastructure.Persistance;
+using SolidFullstackTemplate.Infrastructure.Repositories;
 using SolidFullstackTemplate.Infrastructure.Seeders;
 
 namespace SolidFullstackTemplate.Infrastructure.Extensions;
@@ -16,6 +18,7 @@ public static class ServiceCollectionExtensions
                 configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IRestaurantSeeder, RestaurantSeeder>();
+        services.AddScoped<IRestaurantsRepository, RestaurantsRepository>();
 
         return services;
     }

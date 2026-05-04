@@ -1,3 +1,4 @@
+using SolidFullstackTemplate.Application.Extensions;
 using SolidFullstackTemplate.Infrastructure.Extensions;
 using SolidFullstackTemplate.Infrastructure.Seeders;
 
@@ -5,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddOpenApi()
+    .AddApplication()
     .AddInfrastructure(builder.Configuration)
     .AddControllers();
 
