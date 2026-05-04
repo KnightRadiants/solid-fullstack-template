@@ -7,6 +7,16 @@ public class RestaurantsProfile : Profile
 {
     public RestaurantsProfile()
     {
+        CreateMap<CreateRestaurantDto, Restaurant>()
+            .ForMember(restaurant => restaurant.Address,
+                memberOptions
+                    => memberOptions.MapFrom(src => new Address
+                    {
+                        City = src.City,
+                        Street = src.Street,
+                        PostalCode = src.PostalCode
+                    }));
+
         CreateMap<Restaurant, RestaurantDto>()
             .ForMember(restaurantDto => restaurantDto.City,
                 memberOptions

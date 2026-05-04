@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.Extensions.Logging;
 using SolidFullstackTemplate.Application.Restaurants.Dtos;
+using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Domain.Repositories;
 
 namespace SolidFullstackTemplate.Application.Restaurants;
@@ -25,5 +26,16 @@ internal class RestaurantsService(IRestaurantsRepository restaurantsRepository,
         var restaurantDto = mapper.Map<RestaurantDto>(restaurant);
 
         return restaurantDto;
+    }
+
+    public async Task<int> Create(CreateRestaurantDto dto)
+    {
+        logger.LogInformation("Creating new restaurant");
+
+        var restaurant = mapper.Map<Restaurant>(dto);
+
+        var id = await restaurantsRepository.Create(restaurant);
+
+        return id;
     }
 }

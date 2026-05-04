@@ -13,3 +13,19 @@ Accept: application/json
 GET http://{{host}}/api/restaurants/123
 Accept: application/json
 
+###
+
+POST http://{{host}}/api/restaurants
+Content-Type: application/json
+
+{
+      "Name": "Owner2 restaurant2",
+      "Description": "A cozy restaurant serving a variety of delicious dishes.",
+      "Category": "Indian",
+      "HasDelivery": true,
+      "ContactEmail": "info@test.com",
+      "ContactNumber": "555-1234",
+      "City": "New York",
+      "Street": "123 Main Street",
+      "PostalCode": "10-010"
+}
