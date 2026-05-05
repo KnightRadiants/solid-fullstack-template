@@ -19,13 +19,30 @@ POST http://{{host}}/api/restaurants
 Content-Type: application/json
 
 {
-      "Name": "Owner2 restaurant2",
-      "Description": "A cozy restaurant serving a variety of delicious dishes.",
-      "Category": "Indian",
-      "HasDelivery": true,
-      "ContactEmail": "info@test.com",
-      "ContactNumber": "555-1234",
-      "City": "New York",
-      "Street": "123 Main Street",
-      "PostalCode": "10-010"
+    "Name": "Owner2 restaurant2",
+    "Description": "A cozy restaurant serving a variety of delicious dishes.",
+    "Category": "Indian",
+    "HasDelivery": true,
+    "ContactEmail": "info@test.com",
+    "ContactNumber": "555-1234",
+    "City": "New York",
+    "Street": "123 Main Street",
+    "PostalCode": "10-010"
+}
+
+###
+
+POST http://{{host}}/api/restaurants
+Content-Type: application/json
+
+{
+    "Name": "Owner2 restaurant2",
+    "Description": "postal code wrong - email wrong = validation should prevent from adding this restaurant.",
+    "Category": "Indian",
+    "HasDelivery": true,
+    "ContactEmail": "testtest.info",
+    "ContactNumber": "555-1234",
+    "City": "New York",
+    "Street": "123 Main Street",
+    "PostalCode": "10010"
 }

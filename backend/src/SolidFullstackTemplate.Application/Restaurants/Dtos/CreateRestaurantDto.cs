@@ -1,4 +1,6 @@
-﻿namespace SolidFullstackTemplate.Application.Restaurants.Dtos;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SolidFullstackTemplate.Application.Restaurants.Dtos;
 
 public class CreateRestaurantDto
 {

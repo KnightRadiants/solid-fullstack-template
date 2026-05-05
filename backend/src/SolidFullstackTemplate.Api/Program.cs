@@ -1,3 +1,4 @@
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using SolidFullstackTemplate.Application.Extensions;
 using SolidFullstackTemplate.Infrastructure.Extensions;
 using SolidFullstackTemplate.Infrastructure.Seeders;
@@ -8,6 +9,7 @@ builder.Services
     .AddOpenApi()
     .AddApplication()
     .AddInfrastructure(builder.Configuration)
+    .AddFluentValidationAutoValidation()
     .AddControllers();
 
 var app = builder.Build();
