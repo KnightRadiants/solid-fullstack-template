@@ -1,21 +1,21 @@
 ﻿using FluentValidation;
 
-namespace SolidFullstackTemplate.Application.Restaurants.Dtos.Validators;
+namespace SolidFullstackTemplate.Application.Restaurants.Commands.CreateRestaurant;
 
-public class CreateRestaurantDtoValidator : AbstractValidator<CreateRestaurantDto>
+public class CreateRestaurantCommandValidator : AbstractValidator<CreateRestaurantCommand>
 {
-    private readonly List<string> validCategories = [ "Italian", "Mexican", "Chinese", "Fast Food" ];
+    private readonly List<string> _validCategories = [ "Italian", "Mexican", "Chinese", "Fast Food" ];
 
-    public CreateRestaurantDtoValidator(/*ICategoryValidationService categoryValidationService*/)
+    public CreateRestaurantCommandValidator(/*ICategoryValidationService categoryValidationService*/)
     {
         RuleFor(dto => dto.Name)
             .MinimumLength(3)
             .MaximumLength(100);
 
-        var categories = string.Join(", ", validCategories);
+        var categories = string.Join(", ", _validCategories);
 
         RuleFor(dto => dto.Category)
-            .Must(validCategories.Contains)
+            .Must(_validCategories.Contains)
             .WithMessage($"Please provide a valid category: {categories}");
 
         // Advanced async category validation example:
@@ -44,7 +44,7 @@ public class CreateRestaurantDtoValidator : AbstractValidator<CreateRestaurantDt
         //         }
         //     });
 
-        // Those are redundant because fields are not nullable
+        // Those are redundant because fields are not nullable,
         // so they are required by default
         //
         // RuleFor(dto => dto.Description)

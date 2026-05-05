@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using SolidFullstackTemplate.Application.Restaurants.Commands.CreateRestaurant;
 using SolidFullstackTemplate.Domain.Entities;
 
 namespace SolidFullstackTemplate.Application.Restaurants.Dtos;
@@ -7,7 +8,7 @@ public class RestaurantsProfile : Profile
 {
     public RestaurantsProfile()
     {
-        CreateMap<CreateRestaurantDto, Restaurant>()
+        CreateMap<CreateRestaurantCommand, Restaurant>()
             .ForMember(restaurant => restaurant.Address,
                 memberOptions
                     => memberOptions.MapFrom(src => new Address
