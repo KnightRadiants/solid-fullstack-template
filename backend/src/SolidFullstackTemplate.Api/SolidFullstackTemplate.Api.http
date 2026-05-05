@@ -21,7 +21,7 @@ Content-Type: application/json
 {
     "Name": "Owner2 restaurant2",
     "Description": "A cozy restaurant serving a variety of delicious dishes.",
-    "Category": "Indian",
+    "Category": "Italian",
     "HasDelivery": true,
     "ContactEmail": "info@test.com",
     "ContactNumber": "555-1234",
@@ -46,3 +46,8 @@ Content-Type: application/json
     "Street": "123 Main Street",
     "PostalCode": "10010"
 }
+
+###
+
+DELETE http://{{host}}/api/restaurants/4
+Accept: application/json
