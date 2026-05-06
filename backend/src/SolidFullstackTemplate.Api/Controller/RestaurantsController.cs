@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SolidFullstackTemplate.Application.Restaurants.Commands.CreateRestaurant;
 using SolidFullstackTemplate.Application.Restaurants.Commands.DeleteRestaurant;
 using SolidFullstackTemplate.Application.Restaurants.Commands.UpdateRestaurant;
+using SolidFullstackTemplate.Application.Restaurants.Dtos;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetAllRestaurants;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetRestaurantById;
 
@@ -13,7 +14,8 @@ namespace SolidFullstackTemplate.Api.Controller;
 public class RestaurantsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    [ProducesResponseType(StatusCodes.Status200OK, Description = "All restaurants found")]
+    public async Task<ActionResult<IEnumerable<RestaurantDto>>> GetAll()
     {
         var restaurants = await mediator.Send(new GetAllRestaurantsQuery());
 
@@ -21,7 +23,8 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById([FromRoute] int id)
+    [ProducesResponseType(StatusCodes.Status200OK, Description = "Restaurant found")]
+    public async Task<ActionResult<RestaurantDto>> GetById([FromRoute] int id)
     {
         var restaurant = await mediator.Send(new GetRestaurantByIdQuery(id));
 
@@ -34,6 +37,7 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created, Description = "Restaurant created successfully")]
     public async Task<IActionResult> CreateRestaurant([FromBody] CreateRestaurantCommand command)
     {
         int id = await mediator.Send(command);
@@ -42,6 +46,9 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent, Description = "Restaurant deleted successfully")]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Description = "Restaurant not found")]
+
     public async Task<IActionResult> DeleteRestaurant([FromRoute] int id)
     {
         bool isDeleted = await mediator.Send(new DeleteRestaurantCommand(id));
@@ -55,6 +62,8 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent, Description = "Restaurant updated successfully")]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Description = "Restaurant not found")]
     public async Task<IActionResult> Update([FromBody] UpdateRestaurantCommand command, [FromRoute] int id)
     {
         var isUpdated = await mediator.Send(command with { Id = id });
