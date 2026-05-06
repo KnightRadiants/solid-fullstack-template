@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SolidFullstackTemplate.Application.Restaurants.Commands.CreateRestaurant;
 using SolidFullstackTemplate.Application.Restaurants.Commands.DeleteRestaurant;
+using SolidFullstackTemplate.Application.Restaurants.Commands.UpdateRestaurant;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetAllRestaurants;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetRestaurantById;
 
@@ -46,6 +47,18 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
         bool isDeleted = await mediator.Send(new DeleteRestaurantCommand(id));
 
         if (isDeleted)
+        {
+            return NoContent();
+        }
+
+        return NotFound();
+    }
+
+    [HttpPatch("{id:int}")]
+    public async Task<IActionResult> Update([FromBody] UpdateRestaurantCommand command, [FromRoute] int id)
+    {
+        var isUpdated = await mediator.Send(command with { Id = id });
+        if (isUpdated)
         {
             return NoContent();
         }

@@ -49,5 +49,17 @@ Content-Type: application/json
 
 ###
 
+PATCH http://{{host}}/api/restaurants/5
+Content-Type: application/json
+
+{
+    "Name": "PWNed",
+    "Description": "description patched!!!!",
+    "HasDelivery": false
+
+}
+
+###
+
 DELETE http://{{host}}/api/restaurants/4
 Accept: application/json
