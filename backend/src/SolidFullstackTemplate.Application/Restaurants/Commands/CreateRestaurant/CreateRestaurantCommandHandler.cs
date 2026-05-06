@@ -12,11 +12,11 @@ public class CreateRestaurantCommandHandler(
     IMapper mapper) : IRequestHandler<CreateRestaurantCommand, int>
 {
     public async Task<int> Handle(
-        CreateRestaurantCommand command, CancellationToken cancellationToken)
+        CreateRestaurantCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Creating new restaurant");
+        logger.LogInformation("Creating new restaurant {@Restaurant}", request);
 
-        var restaurant = mapper.Map<Restaurant>(command);
+        var restaurant = mapper.Map<Restaurant>(request);
 
         var id = await restaurantsRepository.Create(restaurant);
 

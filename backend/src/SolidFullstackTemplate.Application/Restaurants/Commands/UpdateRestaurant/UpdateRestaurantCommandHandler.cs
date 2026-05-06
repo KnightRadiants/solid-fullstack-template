@@ -12,8 +12,11 @@ public class UpdateRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandl
 {
     public async Task<bool> Handle(UpdateRestaurantCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Updating restaurant with id: {RestaurantId}", request.Id);
+        logger.LogInformation(
+            "Updating restaurant with id: {RestaurantId} with {@UpdateRestaurantCommand}", request.Id, request);
+
         var restaurant = await restaurantsRepository.GetByIdAsync(request.Id);
+
         if (restaurant == null)
         {
             logger.LogWarning("Restaurant with id {RestaurantId} not found", request.Id);
