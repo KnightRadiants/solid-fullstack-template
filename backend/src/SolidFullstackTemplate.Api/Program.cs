@@ -1,5 +1,6 @@
 using Serilog;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using SolidFullstackTemplate.Api.Middlewares;
 using SolidFullstackTemplate.Application.Extensions;
 using SolidFullstackTemplate.Infrastructure.Extensions;
 using SolidFullstackTemplate.Infrastructure.Seeders;
@@ -11,6 +12,7 @@ builder.Services
     .AddInfrastructure(builder.Configuration)
     .AddFluentValidationAutoValidation()
     .AddSwaggerGen()
+    .AddScoped<ErrorHandlingMiddleware>()
     .AddControllers();
 
 builder.Host.UseSerilog((context, configuration) =>
@@ -23,6 +25,7 @@ var scope = app.Services.CreateScope();
 var seeder = scope.ServiceProvider.GetRequiredService<IRestaurantSeeder>();
 await seeder.SeedAsync();
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseSerilogRequestLogging();
 if (app.Environment.IsDevelopment())
 {
