@@ -2,15 +2,17 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using SolidFullstackTemplate.Application.Restaurants.Commands.DeleteRestaurant;
+using SolidFullstackTemplate.Domain.Entities;
+using SolidFullstackTemplate.Domain.Exceptions;
 using SolidFullstackTemplate.Domain.Repositories;
 
 namespace SolidFullstackTemplate.Application.Restaurants.Commands.UpdateRestaurant;
 
 public class UpdateRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandler> logger,
     IRestaurantsRepository restaurantsRepository,
-    IMapper mapper) : IRequestHandler<UpdateRestaurantCommand, bool>
+    IMapper mapper) : IRequestHandler<UpdateRestaurantCommand>
 {
-    public async Task<bool> Handle(UpdateRestaurantCommand request, CancellationToken cancellationToken)
+    public async Task Handle(UpdateRestaurantCommand request, CancellationToken cancellationToken)
     {
         logger.LogInformation(
             "Updating restaurant with id: {RestaurantId} with {@UpdateRestaurantCommand}", request.Id, request);
@@ -21,12 +23,10 @@ public class UpdateRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandl
         {
             logger.LogWarning("Restaurant with id {RestaurantId} not found", request.Id);
 
-            return false;
+            throw new NotFoundExceptions(nameof(Restaurant), request.Id.ToString());
         }
         mapper.Map(request, restaurant);
 
         await restaurantsRepository.Update(restaurant);
-
-        return true;
     }
 }
