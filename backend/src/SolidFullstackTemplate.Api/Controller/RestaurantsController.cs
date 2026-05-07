@@ -10,7 +10,7 @@ using SolidFullstackTemplate.Application.Restaurants.Queries.GetRestaurantById;
 namespace SolidFullstackTemplate.Api.Controller;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/restaurants")]
 public class RestaurantsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

@@ -1,4 +1,5 @@
 @host = localhost:5283
+@restaurantId = 1
 
 GET http://{{host}}/api/restaurants
 Accept: application/json
@@ -61,5 +62,15 @@ Content-Type: application/json
 
 ###
 
-DELETE http://{{host}}/api/restaurants/4
+DELETE http://{{host}}/api/restaurants/1
 Accept: application/json
+
+###
+POST http://{{host}}/api/restaurants/{{restaurantId}}/dishes
+Content-Type: application/json
+
+{
+    "Name": "Mc Spaghetti",
+    "Description": "Spaghetti but MC fashioned",
+    "Price": 25.99
+}
