@@ -12,7 +12,9 @@ builder.Services
     .AddInfrastructure(builder.Configuration)
     .AddFluentValidationAutoValidation()
     .AddSwaggerGen()
+    .Configure<SlowRequestLoggingOptions>(builder.Configuration.GetSection("SlowRequestLogging"))
     .AddScoped<ErrorHandlingMiddleware>()
+    .AddScoped<SlowRequestLoggingMiddleware>()
     .AddControllers();
 
 builder.Host.UseSerilog((context, configuration) =>
@@ -26,6 +28,7 @@ var seeder = scope.ServiceProvider.GetRequiredService<IRestaurantSeeder>();
 await seeder.SeedAsync();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<SlowRequestLoggingMiddleware>();
 app.UseSerilogRequestLogging();
 if (app.Environment.IsDevelopment())
 {
