@@ -40,4 +40,14 @@ public class DishesController(IMediator mediator) : ControllerBase
 
         return Ok(dish);
     }
+
+    [HttpDelete]
+    [ProducesResponseType(StatusCodes.Status204NoContent, Description = "Dishes deleted successfully")]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Description = "Restaurant not found")]
+    public async Task<IActionResult> DeleteAllForRestaurant([FromRoute] int restaurantId)
+    {
+        await mediator.Send(new SolidFullstackTemplate.Application.Dishes.Commands.DeleteAllDishesForRestaurant.DeleteAllDishesForRestaurantCommand(restaurantId));
+
+        return NoContent();
+    }
 }

@@ -23,4 +23,11 @@ internal class DishRepository(AppDbContext dbContext)
 
         return dish;
     }
+
+    public async Task<int> DeleteAllDishesForRestaurant(int restaurantId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Dishes
+            .Where(d => d.RestaurantId == restaurantId)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }

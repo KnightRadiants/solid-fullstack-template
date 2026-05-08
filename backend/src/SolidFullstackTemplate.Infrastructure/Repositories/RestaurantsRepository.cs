@@ -26,6 +26,12 @@ internal class RestaurantsRepository(AppDbContext dbContext)
         return restaurant;
     }
 
+    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Restaurants
+            .AnyAsync(r => r.Id == id, cancellationToken);
+    }
+
     public async Task<int> Create(Restaurant restaurant)
     {
         dbContext.Restaurants.Add(restaurant);
