@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using SolidFullstackTemplate.Application.Dishes.Dtos;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetRestaurantById;
-using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Domain.Exceptions;
 using SolidFullstackTemplate.Domain.Repositories;
 

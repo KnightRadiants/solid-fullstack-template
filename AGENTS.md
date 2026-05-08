@@ -12,6 +12,7 @@
 
 - When creating commits, follow the commit message convention defined in `COMMIT.md`.
 - When using `git commit`, avoid passing every metadata/detail line as a separate `-m` argument because Git inserts blank lines between each `-m` paragraph. Prefer a single message file/stdin (`git commit -F ...` or `git commit --amend -F ...`) so the commit body keeps the exact newline layout from `COMMIT.md`.
+- When committing, use a longer timeout to allow hooks to finish.
 
 ## Documentation Sync
 
