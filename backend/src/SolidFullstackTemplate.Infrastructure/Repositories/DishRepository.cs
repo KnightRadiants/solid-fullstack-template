@@ -1,4 +1,5 @@
-﻿using SolidFullstackTemplate.Domain.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Domain.Repositories;
 using SolidFullstackTemplate.Infrastructure.Persistance;
 
@@ -13,5 +14,13 @@ internal class DishRepository(AppDbContext dbContext)
         await dbContext.SaveChangesAsync();
 
         return dish.Id;
+    }
+
+    public async Task<Dish?> GetByIdForRestaurant(int dishId, int restaurantId)
+    {
+        var dish = await dbContext.Dishes.FirstOrDefaultAsync(
+            dish => dish.Id == dishId && dish.RestaurantId == restaurantId);
+
+        return dish;
     }
 }

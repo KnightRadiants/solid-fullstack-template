@@ -74,3 +74,6 @@ Content-Type: application/json
     "Description": "Spaghetti but MC fashioned",
     "Price": 25.99
 }
+
+###
+GET http://localhost:5283/api/restaurants/1/dishes/1
