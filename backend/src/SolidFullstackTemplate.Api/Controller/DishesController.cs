@@ -17,9 +17,9 @@ public class DishesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound, Description = "Restaurant not found")]
     public async Task<IActionResult> Create([FromRoute] int restaurantId, [FromBody] CreateDishCommand command)
     {
-        await mediator.Send(command with { RestaurantId = restaurantId });
+        var dishId = await mediator.Send(command with { RestaurantId = restaurantId });
 
-        return Created();
+        return CreatedAtAction(nameof(GetForAllRestaurants), new { restaurantId, dishId }, null);
     }
 
     [HttpGet]

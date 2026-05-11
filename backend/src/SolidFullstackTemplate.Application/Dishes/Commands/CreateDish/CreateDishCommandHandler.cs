@@ -29,11 +29,8 @@ public class CreateDishCommandHandler(
             throw new NotFoundExceptions(nameof(Restaurant), request.RestaurantId.ToString());
         }
         var dish = mapper.Map<Dish>(request);
+        var dishId = await dishRepository.Create(dish);
 
-        var id = await dishRepository.Create(dish);
-        // restaurant.Dishes.Add(dish);
-        // await restaurantsRepository.Update(restaurant);
-
-        return id;
+        return dishId;
     }
 }
