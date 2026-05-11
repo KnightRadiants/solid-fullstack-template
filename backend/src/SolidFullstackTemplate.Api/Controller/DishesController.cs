@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SolidFullstackTemplate.Application.Dishes.Commands.CreateDish;
+using SolidFullstackTemplate.Application.Dishes.Commands.DeleteAllDishesForRestaurant;
 using SolidFullstackTemplate.Application.Dishes.Dtos;
 using SolidFullstackTemplate.Application.Dishes.Queries.GetDishByIdForRestaurant;
 using SolidFullstackTemplate.Application.Dishes.Queries.GetDishesForRestaurant;
@@ -46,7 +47,7 @@ public class DishesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound, Description = "Restaurant not found")]
     public async Task<IActionResult> DeleteAllForRestaurant([FromRoute] int restaurantId)
     {
-        await mediator.Send(new SolidFullstackTemplate.Application.Dishes.Commands.DeleteAllDishesForRestaurant.DeleteAllDishesForRestaurantCommand(restaurantId));
+        await mediator.Send(new DeleteAllDishesForRestaurantCommand(restaurantId));
 
         return NoContent();
     }
