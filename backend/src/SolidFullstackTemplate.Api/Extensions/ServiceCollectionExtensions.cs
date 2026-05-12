@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddIdentityApiEndpoints<User>()
             .AddInfrastructureIdentityStores();
         services.AddControllers();
+        //services.AddAuthentication();
 
         return services;
     }

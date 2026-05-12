@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SolidFullstackTemplate.Application.Dishes.Commands.CreateDish;
 using SolidFullstackTemplate.Application.Dishes.Commands.DeleteAllDishesForRestaurant;
@@ -8,6 +9,7 @@ using SolidFullstackTemplate.Application.Dishes.Queries.GetDishesForRestaurant;
 
 namespace SolidFullstackTemplate.Api.Controller;
 
+[Authorize]
 [ApiController]
 [Route("api/restaurants/{restaurantId:int}/dishes")]
 public class DishesController(IMediator mediator) : ControllerBase

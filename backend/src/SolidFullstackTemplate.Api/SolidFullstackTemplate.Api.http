@@ -1,23 +1,28 @@
 @host = localhost:5283
 @restaurantId = 1
+@token = CfDJ8GJj8HFoiZdAq9cWYSCoG-YQVobzQidN_94bt50Of2qHn_1wa6P2wvVAi8h40h1qKlQuAlNtkHd5e-kI6zizqXl0FjVYDxkvGaqW8WlL-szW1y_ZVsadvPgmfEOgVdJWr3N0MeXp0paw_58VifXXkZmd5VcZv9J_OZfHZQmzVHqiGVt7vAKvnPGf3OrcogWkC0vTYw5XcxNvIX4uZvzkctQYWL0ZLzbI0ZVvG_F19-0UfY0gGGQE1CNGuLsW_rihhYTwQkMnlDQ11IePuuUAxYI53UrVDv_UyQ2D9xXQLPXBGPFh2cBbmlgVhZJPS178XlkMBoZ3R282HvXARqYQmrkoHulWz_SZJWD1TEm-tekxm3jWZ9MUX8Y9fHWdySqrp6dvg2p-ItsNxHd6vUrLzmztQVkOeV_VtmbO8ZuoK4AGmF12Oo0CbFz2iHIsQXZHQFDQoVnHiR4xf1lFoVzhDC__BUBF2W7tsJnMNH79DYPm6snP2HXplHmk9kEkTj88PtlHadiSr3VPPrh8QfAOClQQ5SA8xa9HMPG2Wb16jtlmOKB6PmPiUeSO55LLigpeszm9iUQvVnxK6cvk8lWvJEW_yzxENhj2wq5mIN0ZY1W0Br6whtiwuL32u6FQ2Kg8wP8t2arlFLMbeleTTBhl-1vewbDdk3l7YXE9Qo-tzCYCaXHJctmrXxuMFy_mYsDZU3_evA4Edo0OXeDb6E4qKRTri2TRUanJILyYzZWNUxS2
 
 GET http://{{host}}/api/restaurants
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ###
 
 GET http://{{host}}/api/restaurants/1
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ###
 
 GET http://{{host}}/api/restaurants/123
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ###
 
 POST http://{{host}}/api/restaurants
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
     "Name": "Owner2 restaurant2",
@@ -35,6 +40,7 @@ Content-Type: application/json
 
 POST http://{{host}}/api/restaurants
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
     "Name": "Owner2 restaurant2",
@@ -52,6 +58,7 @@ Content-Type: application/json
 
 PATCH http://{{host}}/api/restaurants/5
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
     "Name": "PWNed",
@@ -64,10 +71,12 @@ Content-Type: application/json
 
 DELETE http://{{host}}/api/restaurants/1
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ###
 POST http://{{host}}/api/restaurants/{{restaurantId}}/dishes
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
     "Name": "Mc Spaghetti",
@@ -76,4 +85,23 @@ Content-Type: application/json
 }
 
 ###
-GET http://localhost:5283/api/restaurants/1/dishes/1
+GET http://{{host}}/api/restaurants/1/dishes/1
+Authorization: Bearer {{token}}
+
+###
+POST http://{{host}}/api/identity/register
+Content-Type: application/json
+
+{
+    "email": "mateusz.poreba@outlook.com",
+    "password": "Qwerty123!"
+}
+
+###
+POST http://{{host}}/api/identity/login
+Content-Type: application/json
+
+{
+    "email": "mateusz.poreba@outlook.com",
+    "password": "Qwerty123!"
+}
