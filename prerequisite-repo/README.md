@@ -14,7 +14,8 @@
     - [Terraform prerequisite](terraform/README.md)
       - [aws-accounts](terraform/aws-accounts/README.md)
       - [aws-iam](terraform/aws-iam/README.md)
-  - [Faza 3: Application Terraform](../terraform/README.md)
+
+  - [Wspolne: Backend API](../backend/README.md)
   - [Wspolne: Config](../config/README.md)
   - [Wspolne: Scripts](../scripts/README.md)
 
