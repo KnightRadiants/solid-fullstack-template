@@ -32,7 +32,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapIdentityApi<User>();
+app.MapGroup("api/identity").MapIdentityApi<User>();
 app.MapControllers();
 
 app.Run();
