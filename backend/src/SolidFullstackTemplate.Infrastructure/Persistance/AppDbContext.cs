@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SolidFullstackTemplate.Domain.Entities;
 
 namespace SolidFullstackTemplate.Infrastructure.Persistance;
 
 internal class AppDbContext(DbContextOptions<AppDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<User>(options)
 {
     public DbSet<Restaurant> Restaurants { get; set; }
     public DbSet<Dish> Dishes { get; set; }

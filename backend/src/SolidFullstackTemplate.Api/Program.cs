@@ -1,7 +1,8 @@
 using Serilog;
-using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using SolidFullstackTemplate.Api.Extensions;
 using SolidFullstackTemplate.Api.Middlewares;
 using SolidFullstackTemplate.Application.Extensions;
+using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Infrastructure.Extensions;
 using SolidFullstackTemplate.Infrastructure.Seeders;
 
@@ -10,16 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration)
-    .AddFluentValidationAutoValidation()
-    .AddSwaggerGen()
-    .Configure<SlowRequestLoggingOptions>(builder.Configuration.GetSection("SlowRequestLogging"))
-    .AddScoped<ErrorHandlingMiddleware>()
-    .AddScoped<SlowRequestLoggingMiddleware>()
-    .AddControllers();
+    .AddApi(builder.Configuration);
 
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
-
 
 var app = builder.Build();
 
@@ -35,7 +30,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseAuthentication();
 app.UseAuthorization();
+app.MapIdentityApi<User>();
 app.MapControllers();
 
 app.Run();
