@@ -1,8 +1,10 @@
 using Microsoft.OpenApi;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using SolidFullstackTemplate.Api.Middlewares;
-using SolidFullstackTemplate.Domain.Entities;
+using SolidFullstackTemplate.Api.User;
+using SolidFullstackTemplate.Application.User;
 using SolidFullstackTemplate.Infrastructure.Extensions;
+using DomainUser = SolidFullstackTemplate.Domain.Entities.User;
 
 namespace SolidFullstackTemplate.Api.Extensions;
 
@@ -38,10 +40,12 @@ public static class ServiceCollectionExtensions
             .AddScoped<ErrorHandlingMiddleware>()
             .AddScoped<SlowRequestLoggingMiddleware>();
 
-        services.AddIdentityApiEndpoints<User>()
+        services.AddIdentityApiEndpoints<DomainUser>()
             .AddInfrastructureIdentityStores();
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<IUserContext, UserContext>();
         services.AddControllers();
-        //services.AddAuthentication();
 
         return services;
     }

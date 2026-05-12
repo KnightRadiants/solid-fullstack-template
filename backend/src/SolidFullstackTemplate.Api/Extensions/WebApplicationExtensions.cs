@@ -1,6 +1,6 @@
 using Serilog;
 using SolidFullstackTemplate.Api.Middlewares;
-using SolidFullstackTemplate.Domain.Entities;
+using DomainUser = SolidFullstackTemplate.Domain.Entities.User;
 
 namespace SolidFullstackTemplate.Api.Extensions;
 
@@ -20,7 +20,7 @@ public static class WebApplicationExtensions
 
         app.UseAuthentication();
         app.UseAuthorization();
-        app.MapGroup("api/identity").MapIdentityApi<User>();
+        app.MapGroup("api/identity").MapIdentityApi<DomainUser>();
         app.MapControllers();
 
         return app;
