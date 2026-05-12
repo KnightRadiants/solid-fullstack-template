@@ -1,3 +1,4 @@
+using Microsoft.OpenApi;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using SolidFullstackTemplate.Api.Middlewares;
 using SolidFullstackTemplate.Domain.Entities;
@@ -14,7 +15,24 @@ public static class ServiceCollectionExtensions
         services
             .AddFluentValidationAutoValidation()
             .AddEndpointsApiExplorer()
-            .AddSwaggerGen()
+            .AddSwaggerGen(c =>
+            {
+                c.AddSecurityDefinition("bearerAuth", new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    Description = "JWT Authorization header using the Bearer scheme."
+                });
+
+                c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecuritySchemeReference("bearerAuth", document),
+                        []
+                    }
+                });
+            })
             .Configure<SlowRequestLoggingOptions>(
                 configuration.GetSection("SlowRequestLogging"))
             .AddScoped<ErrorHandlingMiddleware>()
