@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using SolidFullstackTemplate.Api.ApiUsers;
@@ -41,6 +42,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<SlowRequestLoggingMiddleware>();
 
         services.AddIdentityApiEndpoints<User>()
+            .AddRoles<IdentityRole>()
             .AddInfrastructureIdentityStores();
 
         services.AddHttpContextAccessor();

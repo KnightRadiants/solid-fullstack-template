@@ -7,6 +7,7 @@ using SolidFullstackTemplate.Application.Restaurants.Commands.UpdateRestaurant;
 using SolidFullstackTemplate.Application.Restaurants.Dtos;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetAllRestaurants;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetRestaurantById;
+using SolidFullstackTemplate.Domain.Constants;
 
 namespace SolidFullstackTemplate.Api.Controller;
 
@@ -34,6 +35,7 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = UserRoles.Owner)]
     [ProducesResponseType(StatusCodes.Status201Created, Description = "Restaurant created successfully")]
     public async Task<IActionResult> CreateRestaurant([FromBody] CreateRestaurantCommand command)
     {

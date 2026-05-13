@@ -1,4 +1,6 @@
-﻿using SolidFullstackTemplate.Domain.Entities;
+﻿using Microsoft.AspNetCore.Identity;
+using SolidFullstackTemplate.Domain.Constants;
+using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Infrastructure.Persistance;
 
 namespace SolidFullstackTemplate.Infrastructure.Seeders;
@@ -15,7 +17,26 @@ internal class RestaurantSeeder(AppDbContext dbContext) : IRestaurantSeeder
                 dbContext.Restaurants.AddRange(restaurants);
                 await dbContext.SaveChangesAsync();
             }
+
+            if (!dbContext.Roles.Any())
+            {
+                var roles = GetRoles();
+                dbContext.Roles.AddRange(roles);
+                await dbContext.SaveChangesAsync();
+            }
         }
+    }
+
+    private IEnumerable<IdentityRole> GetRoles()
+    {
+        List<IdentityRole> roles =
+        [
+            new() { Name = UserRoles.Admin },
+            new() { Name = UserRoles.User },
+            new() { Name = UserRoles.Owner }
+        ];
+
+        return roles;
     }
 
     private IEnumerable<Restaurant> GetRestaurants()

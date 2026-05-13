@@ -1,6 +1,6 @@
 @host = localhost:5283
 @restaurantId = 1
-@token = CfDJ8GJj8HFoiZdAq9cWYSCoG-YQVobzQidN_94bt50Of2qHn_1wa6P2wvVAi8h40h1qKlQuAlNtkHd5e-kI6zizqXl0FjVYDxkvGaqW8WlL-szW1y_ZVsadvPgmfEOgVdJWr3N0MeXp0paw_58VifXXkZmd5VcZv9J_OZfHZQmzVHqiGVt7vAKvnPGf3OrcogWkC0vTYw5XcxNvIX4uZvzkctQYWL0ZLzbI0ZVvG_F19-0UfY0gGGQE1CNGuLsW_rihhYTwQkMnlDQ11IePuuUAxYI53UrVDv_UyQ2D9xXQLPXBGPFh2cBbmlgVhZJPS178XlkMBoZ3R282HvXARqYQmrkoHulWz_SZJWD1TEm-tekxm3jWZ9MUX8Y9fHWdySqrp6dvg2p-ItsNxHd6vUrLzmztQVkOeV_VtmbO8ZuoK4AGmF12Oo0CbFz2iHIsQXZHQFDQoVnHiR4xf1lFoVzhDC__BUBF2W7tsJnMNH79DYPm6snP2HXplHmk9kEkTj88PtlHadiSr3VPPrh8QfAOClQQ5SA8xa9HMPG2Wb16jtlmOKB6PmPiUeSO55LLigpeszm9iUQvVnxK6cvk8lWvJEW_yzxENhj2wq5mIN0ZY1W0Br6whtiwuL32u6FQ2Kg8wP8t2arlFLMbeleTTBhl-1vewbDdk3l7YXE9Qo-tzCYCaXHJctmrXxuMFy_mYsDZU3_evA4Edo0OXeDb6E4qKRTri2TRUanJILyYzZWNUxS2
+@token = CfDJ8GJj8HFoiZdAq9cWYSCoG-YUn1tSss2kmKUWmXEQVy1o657mR-adyHPQKImT4PvcLDSg2jWuLARwnwfZrWcCWtsi3ZESnq29lSouWo1C6yExzX4mNl58qnfZpekHJphBQtbeOaUr-J3q-1zjlVPBdGLl-SrgOXqDjQ7WB4QmLilQbJ_FHn81SVlX_4iPZ5HjFPG0ISEC9heF0pwebW02TtdISIegphgDSUhTvQiokJHneBRXW_aIl3nzowoyM0vNEg76DBFR9Aa7ZC6KDKYclsa0Tz75mLaufLPzfzzQFNVeEcT3Dy5NA2O3YyAFeyyXsUIGNJgmmuzR2bv--UT5-TLrbmgt5Y42pvZXCnMPZcLidNc_RsCxOYGAGOuzxTONp2D-O0SlURCtHSjczfEnSp9uYgrUwOCTQfjOm1POJgVZV7yCGnB5JCcOnlqJ-zQ9ohS5Sbps5uwPjX8EDK9Fi6TSzrpvdmcP0SIchKTHsbo0NwnnpRz_rcO-LDvURmFsVJ0a_BMeuQppU2D7Bu00DOLUiEy_LTVxi_9AvgC-atT-AIgN6C5OC3TBKjry_76P6zYVuqRfVADWC5jedkRWoPniNyBzDYnYofoUfJIQkA7-JvMud_FXINlG9AStaiol0fnZfWHFZfHoOgbW0lQNYx1xZDtyWpWOI0hpiCuiRL6NJfshZDMmhIJZWhH3dV_sZvquVTsXf1RZlwHOu9Am60kqZ3gVDyZl9g0r7buQXSlj1uuRN1OCud7OobqzV7Cgzjm_yG7PpL57Qi6ECmtWplix-W5EnaGW1MHQQqFYZcmx
 
 GET http://{{host}}/api/restaurants
 Accept: application/json
@@ -93,7 +93,7 @@ POST http://{{host}}/api/identity/register
 Content-Type: application/json
 
 {
-    "email": "mateusz.poreba@outlook.com",
+    "email": "user@outlook.com",
     "password": "Qwerty123!"
 }
 
@@ -102,6 +102,6 @@ POST http://{{host}}/api/identity/login
 Content-Type: application/json
 
 {
-    "email": "mateusz.poreba@outlook.com",
+    "email": "owner@outlook.com",
     "password": "Qwerty123!"
 }
