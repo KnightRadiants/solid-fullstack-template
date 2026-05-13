@@ -1,12 +1,11 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using SolidFullstackTemplate.Application.User;
+using SolidFullstackTemplate.Application.Users;
 
-namespace SolidFullstackTemplate.Api.User;
+namespace SolidFullstackTemplate.Api.ApiUsers;
 
 public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContext
 {
-    public CurrentUser? GetCurrentUser()
+    public CurrentUser GetCurrentUser()
     {
         var user = httpContextAccessor.HttpContext?.User;
 
@@ -14,7 +13,7 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
             throw new InvalidOperationException("User not found in HttpContext");
 
         if (user.Identity is null || !user.Identity.IsAuthenticated)
-            return null;
+            throw new InvalidOperationException("User is not authenticated");
 
         var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)!.Value;
         var email = user.FindFirst(c => c.Type == ClaimTypes.Email)!.Value;

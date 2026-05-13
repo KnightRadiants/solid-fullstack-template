@@ -1,4 +1,4 @@
-﻿namespace SolidFullstackTemplate.Application.User;
+﻿namespace SolidFullstackTemplate.Application.Users;
 
 public record CurrentUser(string Id, string Email, IEnumerable<string> Roles)
 {

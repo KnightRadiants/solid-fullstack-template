@@ -20,7 +20,9 @@ public static class WebApplicationExtensions
 
         app.UseAuthentication();
         app.UseAuthorization();
-        app.MapGroup("api/identity").MapIdentityApi<DomainUser>();
+        app.MapGroup("api/identity")
+            .WithTags("Identity")
+            .MapIdentityApi<DomainUser>();
         app.MapControllers();
 
         return app;

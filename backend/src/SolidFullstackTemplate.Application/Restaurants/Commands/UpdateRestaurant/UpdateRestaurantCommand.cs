@@ -6,4 +6,5 @@ public sealed record UpdateRestaurantCommand(
     int Id,
     string Name,
     string Description,
-    bool HasDelivery) : IRequest;
+    bool HasDelivery
+) : IRequest;
