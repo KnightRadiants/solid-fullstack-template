@@ -5,6 +5,7 @@ using SolidFullstackTemplate.Api.ApiUsers;
 using SolidFullstackTemplate.Api.Middlewares;
 using SolidFullstackTemplate.Application.Users;
 using SolidFullstackTemplate.Domain.Entities;
+using SolidFullstackTemplate.Infrastructure.Authorization;
 using SolidFullstackTemplate.Infrastructure.Extensions;
 
 namespace SolidFullstackTemplate.Api.Extensions;
@@ -43,6 +44,7 @@ public static class ServiceCollectionExtensions
 
         services.AddIdentityApiEndpoints<User>()
             .AddRoles<IdentityRole>()
+            .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>()
             .AddInfrastructureIdentityStores();
 
         services.AddHttpContextAccessor();
