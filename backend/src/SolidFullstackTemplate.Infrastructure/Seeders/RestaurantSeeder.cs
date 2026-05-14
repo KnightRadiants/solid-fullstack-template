@@ -1,42 +1,77 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using SolidFullstackTemplate.Domain.Constants;
 using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Infrastructure.Persistance;
 
 namespace SolidFullstackTemplate.Infrastructure.Seeders;
 
-internal class RestaurantSeeder(AppDbContext dbContext) : IRestaurantSeeder
+internal class RestaurantSeeder(
+    AppDbContext dbContext,
+    RoleManager<IdentityRole> roleManager,
+    ILookupNormalizer lookupNormalizer) : IRestaurantSeeder
 {
     public async Task SeedAsync()
     {
         if (await dbContext.Database.CanConnectAsync())
         {
-            if (!dbContext.Restaurants.Any())
+            if (!await dbContext.Restaurants.AnyAsync())
             {
                 var restaurants = GetRestaurants();
                 dbContext.Restaurants.AddRange(restaurants);
                 await dbContext.SaveChangesAsync();
             }
 
-            if (!dbContext.Roles.Any())
-            {
-                var roles = GetRoles();
-                dbContext.Roles.AddRange(roles);
-                await dbContext.SaveChangesAsync();
-            }
+            await SeedRolesAsync();
         }
     }
 
-    private IEnumerable<IdentityRole> GetRoles()
+    private async Task SeedRolesAsync()
     {
-        List<IdentityRole> roles =
-        [
-            new() { Name = UserRoles.Admin },
-            new() { Name = UserRoles.User },
-            new() { Name = UserRoles.Owner }
-        ];
+        foreach (var roleName in UserRoles.All)
+        {
+            var normalizedRoleName = lookupNormalizer.NormalizeName(roleName);
 
-        return roles;
+            var existingRole = await dbContext.Roles
+                .FirstOrDefaultAsync(role =>
+                    role.Name == roleName || role.NormalizedName == normalizedRoleName);
+
+            if (existingRole is not null)
+            {
+                if (existingRole.Name == roleName &&
+                    existingRole.NormalizedName == normalizedRoleName)
+                {
+                    continue;
+                }
+
+                existingRole.Name = roleName;
+                existingRole.NormalizedName = normalizedRoleName;
+
+                var updateResult = await roleManager.UpdateAsync(existingRole);
+                EnsureRoleOperationSucceeded(updateResult, roleName, "update");
+                continue;
+            }
+
+            var createResult = await roleManager.CreateAsync(new IdentityRole(roleName));
+            EnsureRoleOperationSucceeded(createResult, roleName, "create");
+        }
+    }
+
+    private static void EnsureRoleOperationSucceeded(
+        IdentityResult result,
+        string roleName,
+        string operation)
+    {
+        if (result.Succeeded)
+        {
+            return;
+        }
+
+        var errors = string.Join("; ", result.Errors.Select(error =>
+            $"{error.Code}: {error.Description}"));
+
+        throw new InvalidOperationException(
+            $"Failed to {operation} role '{roleName}': {errors}");
     }
 
     private IEnumerable<Restaurant> GetRestaurants()
