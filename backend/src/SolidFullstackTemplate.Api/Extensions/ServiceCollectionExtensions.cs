@@ -49,6 +49,10 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
         services.AddScoped<IUserContext, UserContext>();
+        services.AddAuthorizationBuilder()
+            .AddPolicy(PolicyNames.HasNationality, builder =>
+                builder.RequireClaim(AppClaimTypes.Nationality, "German", "Polish"));
+
         services.AddControllers();
 
         return services;

@@ -8,6 +8,7 @@ using SolidFullstackTemplate.Application.Restaurants.Dtos;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetAllRestaurants;
 using SolidFullstackTemplate.Application.Restaurants.Queries.GetRestaurantById;
 using SolidFullstackTemplate.Domain.Constants;
+using SolidFullstackTemplate.Infrastructure.Authorization;
 
 namespace SolidFullstackTemplate.Api.Controller;
 
@@ -26,6 +27,7 @@ public class RestaurantsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = PolicyNames.HasNationality)]
     [ProducesResponseType(StatusCodes.Status200OK, Description = "Restaurant found")]
     public async Task<ActionResult<RestaurantDto>> GetById([FromRoute] int id)
     {
