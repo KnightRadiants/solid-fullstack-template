@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using SolidFullstackTemplate.Application.Users;
+using SolidFullstackTemplate.Infrastructure.Authorization;
 
 namespace SolidFullstackTemplate.Api.ApiUsers;
 
@@ -21,7 +22,11 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
             .Where(c => c.Type == ClaimTypes.Role)
             .Select(c => c.Value)
             .ToArray();
+        var nationality = user.FindFirst(c => c.Type == AppClaimTypes.Nationality)?.Value;
+        var dateOfBirthString = user.FindFirst(c => c.Type == AppClaimTypes.DateOfBirth)?.Value;
+        var dateOfBirth = dateOfBirthString is not null ?
+            DateOnly.ParseExact(dateOfBirthString, "yyyy-MM-dd") : (DateOnly?)null;
 
-        return new CurrentUser(userId, email, roles);
+        return new CurrentUser(userId, email, roles, nationality, dateOfBirth);
     }
 }

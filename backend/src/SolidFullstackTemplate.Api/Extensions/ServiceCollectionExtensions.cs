@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
@@ -6,6 +7,7 @@ using SolidFullstackTemplate.Api.Middlewares;
 using SolidFullstackTemplate.Application.Users;
 using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Infrastructure.Authorization;
+using SolidFullstackTemplate.Infrastructure.Authorization.Requirements;
 using SolidFullstackTemplate.Infrastructure.Extensions;
 
 namespace SolidFullstackTemplate.Api.Extensions;
@@ -51,7 +53,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserContext, UserContext>();
         services.AddAuthorizationBuilder()
             .AddPolicy(PolicyNames.HasNationality, builder =>
-                builder.RequireClaim(AppClaimTypes.Nationality, "German", "Polish"));
+                builder.RequireClaim(AppClaimTypes.Nationality, "German", "Polish"))
+            .AddPolicy(PolicyNames.AtLeast20YearsOld, builder =>
+                builder.AddRequirements(new MinimumAgeRequirement(20)));
+
+        services.AddScoped<IAuthorizationHandler, MinimumAgeRequirementHandler>();
 
         services.AddControllers();
 

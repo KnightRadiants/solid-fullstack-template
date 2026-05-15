@@ -6,6 +6,7 @@ using SolidFullstackTemplate.Application.Dishes.Commands.DeleteAllDishesForResta
 using SolidFullstackTemplate.Application.Dishes.Dtos;
 using SolidFullstackTemplate.Application.Dishes.Queries.GetDishByIdForRestaurant;
 using SolidFullstackTemplate.Application.Dishes.Queries.GetDishesForRestaurant;
+using SolidFullstackTemplate.Infrastructure.Authorization;
 
 namespace SolidFullstackTemplate.Api.Controller;
 
@@ -21,13 +22,14 @@ public class DishesController(IMediator mediator) : ControllerBase
     {
         var dishId = await mediator.Send(command with { RestaurantId = restaurantId });
 
-        return CreatedAtAction(nameof(GetForAllRestaurants), new { restaurantId, dishId }, null);
+        return CreatedAtAction(nameof(GetAllForRestaurant), new { restaurantId, dishId }, null);
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.AtLeast20YearsOld)]
     [ProducesResponseType(StatusCodes.Status200OK, Description = "All dishes found for restaurant")]
     [ProducesResponseType(StatusCodes.Status404NotFound, Description = "Restaurant not found")]
-    public async Task<ActionResult<IEnumerable<DishDto>>> GetForAllRestaurants([FromRoute] int restaurantId)
+    public async Task<ActionResult<IEnumerable<DishDto>>> GetAllForRestaurant([FromRoute] int restaurantId)
     {
         var dishes = await mediator.Send(new GetDishesForRestaurantQuery(restaurantId));
 
