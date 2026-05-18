@@ -8,21 +8,31 @@ namespace SolidFullstackTemplate.Infrastructure.Seeders;
 
 internal class RestaurantSeeder(
     AppDbContext dbContext,
+    UserManager<User> userManager,
     RoleManager<IdentityRole> roleManager,
     ILookupNormalizer lookupNormalizer) : IRestaurantSeeder
 {
+    private const string SeedUserPassword = "Password123!";
+
     public async Task SeedAsync()
     {
         if (await dbContext.Database.CanConnectAsync())
         {
+            await SeedRolesAsync();
+            await SeedUsersAsync();
+
             if (!await dbContext.Restaurants.AnyAsync())
             {
-                var restaurants = GetRestaurants();
+                var adminUser = await userManager.FindByEmailAsync(GetSeedUserEmail(UserRoles.Admin));
+                if (adminUser is null)
+                {
+                    throw new InvalidOperationException("Admin seed user was not found.");
+                }
+
+                var restaurants = GetRestaurants(adminUser.Id);
                 dbContext.Restaurants.AddRange(restaurants);
                 await dbContext.SaveChangesAsync();
             }
-
-            await SeedRolesAsync();
         }
     }
 
@@ -57,9 +67,48 @@ internal class RestaurantSeeder(
         }
     }
 
+    private async Task SeedUsersAsync()
+    {
+        foreach (var roleName in UserRoles.All)
+        {
+            var email = GetSeedUserEmail(roleName);
+            var user = await userManager.FindByEmailAsync(email);
+
+            if (user is null)
+            {
+                user = new User
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true
+                };
+
+                var createResult = await userManager.CreateAsync(user, SeedUserPassword);
+                EnsureIdentityOperationSucceeded(createResult, email, "create user");
+            }
+
+            if (!await userManager.IsInRoleAsync(user, roleName))
+            {
+                var addToRoleResult = await userManager.AddToRoleAsync(user, roleName);
+                EnsureIdentityOperationSucceeded(addToRoleResult, email, $"assign role '{roleName}' to user");
+            }
+        }
+    }
+
+    private static string GetSeedUserEmail(string roleName) =>
+        $"{roleName.ToLowerInvariant()}@solidfullstack.local";
+
     private static void EnsureRoleOperationSucceeded(
         IdentityResult result,
         string roleName,
+        string operation)
+    {
+        EnsureIdentityOperationSucceeded(result, roleName, $"{operation} role");
+    }
+
+    private static void EnsureIdentityOperationSucceeded(
+        IdentityResult result,
+        string subject,
         string operation)
     {
         if (result.Succeeded)
@@ -71,10 +120,10 @@ internal class RestaurantSeeder(
             $"{error.Code}: {error.Description}"));
 
         throw new InvalidOperationException(
-            $"Failed to {operation} role '{roleName}': {errors}");
+            $"Failed to {operation} '{subject}': {errors}");
     }
 
-    private IEnumerable<Restaurant> GetRestaurants()
+    private IEnumerable<Restaurant> GetRestaurants(string ownerId)
     {
         List<Restaurant> restaurants = [
             new()
@@ -84,6 +133,7 @@ internal class RestaurantSeeder(
                 Description =
                     "KFC (short for Kentucky Fried Chicken) is an American fast food restaurant chain headquartered in Louisville, Kentucky, that specializes in fried chicken.",
                 ContactEmail = "contact@kfc.com",
+                OwnerId = ownerId,
                 HasDelivery = true,
                 Dishes =
                 [
@@ -116,6 +166,7 @@ internal class RestaurantSeeder(
                 Description =
                     "McDonald's Corporation (McDonald's), incorporated on December 21, 1964, operates and franchises McDonald's restaurants.",
                 ContactEmail = "contact@mcdonald.com",
+                OwnerId = ownerId,
                 HasDelivery = true,
                 Address = new Address()
                 {
