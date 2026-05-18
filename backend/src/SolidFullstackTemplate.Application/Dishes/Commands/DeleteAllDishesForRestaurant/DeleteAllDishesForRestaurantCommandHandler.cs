@@ -1,27 +1,25 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using SolidFullstackTemplate.Domain.Entities;
-using SolidFullstackTemplate.Domain.Exceptions;
+using SolidFullstackTemplate.Domain.Constants;
+using SolidFullstackTemplate.Domain.Interfaces;
 using SolidFullstackTemplate.Domain.Repositories;
 
 namespace SolidFullstackTemplate.Application.Dishes.Commands.DeleteAllDishesForRestaurant;
 
 public class DeleteAllDishesForRestaurantCommandHandler(
     ILogger<DeleteAllDishesForRestaurantCommandHandler> logger,
-    IRestaurantsRepository restaurantsRepository,
-    IDishRepository dishRepository)
+    IDishRepository dishRepository,
+    IRestaurantAuthorizationService restaurantAuthorizationService)
     : IRequestHandler<DeleteAllDishesForRestaurantCommand>
 {
     public async Task Handle(DeleteAllDishesForRestaurantCommand request, CancellationToken cancellationToken)
     {
         logger.LogInformation("Deleting all dishes for restaurant with id: {RestaurantId}", request.RestaurantId);
 
-        var restaurantExists = await restaurantsRepository.ExistsAsync(request.RestaurantId, cancellationToken);
-        if (!restaurantExists)
-        {
-            logger.LogWarning("Restaurant with id {RestaurantId} not found", request.RestaurantId);
-            throw new NotFoundExceptions(nameof(Restaurant), request.RestaurantId.ToString());
-        }
+        await restaurantAuthorizationService.EnsureAuthorizedAsync(
+            request.RestaurantId,
+            ResourceOperation.Update,
+            cancellationToken);
 
         var removedRecords = await dishRepository.DeleteAllDishesForRestaurant(
             request.RestaurantId, cancellationToken);

@@ -1,16 +1,18 @@
 ﻿using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using SolidFullstackTemplate.Application.Restaurants.Commands.DeleteRestaurant;
+using SolidFullstackTemplate.Domain.Constants;
 using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Domain.Exceptions;
+using SolidFullstackTemplate.Domain.Interfaces;
 using SolidFullstackTemplate.Domain.Repositories;
 
 namespace SolidFullstackTemplate.Application.Restaurants.Commands.UpdateRestaurant;
 
-public class UpdateRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandler> logger,
+public class UpdateRestaurantCommandHandler(ILogger<UpdateRestaurantCommandHandler> logger,
     IRestaurantsRepository restaurantsRepository,
-    IMapper mapper) : IRequestHandler<UpdateRestaurantCommand>
+    IMapper mapper,
+    IRestaurantAuthorizationService restaurantAuthorizationService) : IRequestHandler<UpdateRestaurantCommand>
 {
     public async Task Handle(UpdateRestaurantCommand request, CancellationToken cancellationToken)
     {
@@ -25,6 +27,9 @@ public class UpdateRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandl
 
             throw new NotFoundExceptions(nameof(Restaurant), request.Id.ToString());
         }
+
+        restaurantAuthorizationService.EnsureAuthorized(restaurant, ResourceOperation.Update);
+
         mapper.Map(request, restaurant);
 
         await restaurantsRepository.Update(restaurant);

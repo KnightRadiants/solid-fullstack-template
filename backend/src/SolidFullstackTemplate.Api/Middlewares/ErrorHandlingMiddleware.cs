@@ -18,6 +18,13 @@ internal class ErrorHandlingMiddleware(ILogger<ErrorHandlingMiddleware> logger)
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             await context.Response.WriteAsync(notFound.Message);
         }
+        catch (ForbidException forbid)
+        {
+            logger.LogWarning(forbid, "Forbidden resource access");
+
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync(forbid.Message);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception occurred while processing request");

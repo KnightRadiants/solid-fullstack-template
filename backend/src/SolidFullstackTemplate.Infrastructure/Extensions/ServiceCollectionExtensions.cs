@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SolidFullstackTemplate.Domain.Interfaces;
 using SolidFullstackTemplate.Domain.Repositories;
+using SolidFullstackTemplate.Infrastructure.Authorization.Services;
 using SolidFullstackTemplate.Infrastructure.Persistance;
 using SolidFullstackTemplate.Infrastructure.Repositories;
 using SolidFullstackTemplate.Infrastructure.Seeders;
@@ -25,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRestaurantSeeder, RestaurantSeeder>();
         services.AddScoped<IRestaurantsRepository, RestaurantsRepository>();
         services.AddScoped<IDishRepository, DishRepository>();
+        services.AddScoped<IRestaurantAuthorizationService, RestaurantAuthorizationService>();
 
         return services;
     }

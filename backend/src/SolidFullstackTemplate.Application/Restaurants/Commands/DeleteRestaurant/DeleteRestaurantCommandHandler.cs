@@ -1,13 +1,16 @@
 ﻿using MediatR;
 using Microsoft.Extensions.Logging;
+using SolidFullstackTemplate.Domain.Constants;
 using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Domain.Exceptions;
+using SolidFullstackTemplate.Domain.Interfaces;
 using SolidFullstackTemplate.Domain.Repositories;
 
 namespace SolidFullstackTemplate.Application.Restaurants.Commands.DeleteRestaurant;
 
 public class DeleteRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandler> logger,
-    IRestaurantsRepository restaurantsRepository) : IRequestHandler<DeleteRestaurantCommand>
+    IRestaurantsRepository restaurantsRepository,
+    IRestaurantAuthorizationService restaurantAuthorizationService) : IRequestHandler<DeleteRestaurantCommand>
 {
     public async Task Handle(DeleteRestaurantCommand request, CancellationToken cancellationToken)
     {
@@ -19,6 +22,9 @@ public class DeleteRestaurantCommandHandler(ILogger<DeleteRestaurantCommandHandl
 
             throw new NotFoundExceptions(nameof(Restaurant), request.Id.ToString());
         }
+
+        restaurantAuthorizationService.EnsureAuthorized(restaurant, ResourceOperation.Delete);
+
         await restaurantsRepository.Delete(restaurant);
     }
 }
