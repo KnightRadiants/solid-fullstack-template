@@ -19,6 +19,9 @@ public static class ServiceCollectionExtensions
             options.UseNpgsql(connectionString)
                 .EnableSensitiveDataLogging());
 
+        services.AddScoped<IApplicationSeeder, ApplicationSeeder>();
+        services.AddScoped<IRoleSeeder, RoleSeeder>();
+        services.AddScoped<IUserSeeder, UserSeeder>();
         services.AddScoped<IRestaurantSeeder, RestaurantSeeder>();
         services.AddScoped<IRestaurantsRepository, RestaurantsRepository>();
         services.AddScoped<IDishRepository, DishRepository>();
