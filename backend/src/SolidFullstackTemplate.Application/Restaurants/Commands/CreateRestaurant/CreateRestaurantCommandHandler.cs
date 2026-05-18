@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using SolidFullstackTemplate.Application.Users;
 using SolidFullstackTemplate.Domain.Entities;
 using SolidFullstackTemplate.Domain.Repositories;
 
@@ -9,14 +10,19 @@ namespace SolidFullstackTemplate.Application.Restaurants.Commands.CreateRestaura
 public class CreateRestaurantCommandHandler(
     IRestaurantsRepository restaurantsRepository,
     ILogger<CreateRestaurantCommandHandler> logger,
-    IMapper mapper) : IRequestHandler<CreateRestaurantCommand, int>
+    IMapper mapper,
+    IUserContext userContext) : IRequestHandler<CreateRestaurantCommand, int>
 {
     public async Task<int> Handle(
         CreateRestaurantCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Creating new restaurant {@Restaurant}", request);
+        var currentUser = userContext.GetCurrentUser();
+
+        logger.LogInformation("Creating new restaurant {@Restaurant} for user: {UserEmail}",
+            request, currentUser.Email);
 
         var restaurant = mapper.Map<Restaurant>(request);
+        restaurant.OwnerId = currentUser.Id;
 
         var id = await restaurantsRepository.Create(restaurant);
 
