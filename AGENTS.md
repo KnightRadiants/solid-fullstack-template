@@ -14,6 +14,11 @@
 - When using `git commit`, avoid passing every metadata/detail line as a separate `-m` argument because Git inserts blank lines between each `-m` paragraph. Prefer a single message file/stdin (`git commit -F ...` or `git commit --amend -F ...`) so the commit body keeps the exact newline layout from `COMMIT.md`.
 - When committing, use a longer timeout to allow hooks to finish.
 
+## Line Endings
+
+- Preserve CRLF line endings when editing repository text files covered by `.gitattributes` and `.editorconfig`, especially C#, project, JSON, Markdown, and Terraform files.
+- Before committing code changes, verify modified files do not contain mixed LF/CRLF line endings and normalize them to the repository policy if needed.
+
 ## Documentation Sync
 
 - Keep `docs/operational-overview.md` up to date as the short operational overview of the repository.
